@@ -1,0 +1,141 @@
+<html>
+<head>
+<script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
+<script>
+    function log(text)
+    {
+        $("#log").append(text).append("<br>");
+    }
+    async function onButtonClick() {
+      let filters = [];
+
+      let filterName = "6S";
+      filters.push({name: filterName});
+        let options = {};
+        options.filters = filters;
+
+      try {
+        log('Requesting Bluetooth Scan with options: ' + JSON.stringify(options));
+        const scan = await navigator.bluetooth.requestLEScan(options);
+
+        log('Scan started with:');
+        log(' acceptAllAdvertisements: ' + scan.acceptAllAdvertisements);
+        log(' active: ' + scan.active);
+        log(' keepRepeatedDevices: ' + scan.keepRepeatedDevices);
+        log(' filters: ' + JSON.stringify(scan.filters));
+
+        navigator.bluetooth.addEventListener('advertisementreceived', event => {
+          // log('Advertisement received.');
+          // log('  Device Name: ' + event.device.name);
+          // log('  Device ID: ' + event.device.id);
+          // log('  RSSI: ' + event.rssi);
+          // log('  TX Power: ' + event.txPower);
+          // log('  UUIDs: ' + event.uuids);
+          event.manufacturerData.forEach((valueDataView, key) => {
+            // logDataView('Manufacturer', key, valueDataView);
+            console.log(key);
+            if(key == 0xF00d)
+            {
+                //This is ours
+                let uint8view = new Uint8Array(valueDataView.buffer);
+                // let uint16view = new Uint16Array(valueDataView.buffer);
+                console.log(uint8view)
+                // console.log(uint16view)
+                let crew = -1;
+                let fall = -1;
+                let voltage = -1;
+                let current = -1;
+                let voltageField = -1;
+                let currentField = -1;
+                if(uint8view[0] == 1)
+                {
+                    //OLD
+                    crew = ((uint8view[3]) & 0b11111000) >> 3;
+                    fall = ((uint8view[3]) & 0b001) == 0b001;
+                    voltage = ((uint8view[3]) & 0b010) == 0b010;
+                    current = ((uint8view[3]) & 0b100) == 0b100;
+                    voltageField = (uint8view[4]) | (uint8view[5] <<8);
+                    currentField = (uint8view[6]) | (uint8view[7] << 8);
+                    console.log(voltageField,currentField);
+                } else if(uint8view[0] == 2)
+                {
+                    //NEW
+                    crew = ((uint8view[9]) & 0b11111000) >> 3;
+                    fall = ((uint8view[9]) & 0b001) == 0b001;
+                    voltage = ((uint8view[9]) & 0b010) == 0b010;
+                    current = ((uint8view[9]) & 0b100) == 0b100;
+                    voltageField = (uint8view[10]) | (uint8view[11] <<8);
+                    currentField = (uint8view[12]) | (uint8view[13] << 8);
+                    console.log(voltageField,currentField);
+                }
+                $('#current .value').text(currentField);
+                $('#voltage .value').text(voltageField);
+                $('#current .alert').text(current? "Alert":"No Alert");
+                $('#voltage .alert').text(voltage? "Alert":"No Alert");
+
+    // m_beacon_info[0] = LW_CURRENT_ADV_DATA_PROTOCOL_VERSION;
+    // m_beacon_info[1] = ADV_DATA_LIVE_WIRE_TYPE;
+    // m_beacon_info[2] = LW_APP_ADV_DATA_LENGTH;
+    // memcpy(m_beacon_info+3, device_addr.addr, BLE_GAP_ADDR_LEN);
+    // m_beacon_info[9] = (m_adv_data_cache.crewChannel << 3) |
+    //     (m_adv_data_cache.fallAlertPresent ? 0b001 : 0b000) | 
+    //     (m_adv_data_cache.voltageAlertPresent ? 0b010 : 0b000) | 
+    //     (m_adv_data_cache.currentAlertPresent ? 0b100 : 0b00);
+    // memcpy(m_beacon_info+10, &m_adv_data_cache.voltageField, 2);
+    // memcpy(m_beacon_info+11, &m_adv_data_cache.currentField, 2);
+            }
+          });
+          event.serviceData.forEach((valueDataView, key) => {
+            logDataView('Service', key, valueDataView);
+          });
+        });
+
+        // setTimeout(stopScan, 10000);
+        // function stopScan() {
+        //   log('Stopping scan...');
+        //   scan.stop();
+        //   log('Stopped.  scan.active = ' + scan.active);
+        // }
+        $("#stop").click(function(e){
+            log('Stopping scan...');
+          scan.stop();
+          log('Stopped.  scan.active = ' + scan.active);
+        });
+      } catch(error)  {
+        log('Argh! ' + error);
+      }
+}
+
+/* Utils */
+
+    const logDataView = (labelOfDataSource, key, valueDataView) => {
+      const hexString = [...new Uint8Array(valueDataView.buffer)].map(b => {
+        return b.toString(16).padStart(2, '0');
+      }).join(' ');
+      const textDecoder = new TextDecoder('ascii');
+      const asciiString = textDecoder.decode(valueDataView.buffer);
+      log(`  ${labelOfDataSource} Data: ` + key +
+          '\n    (Hex) ' + hexString +
+          '\n    (ASCII) ' + asciiString);
+    };
+    $(document).ready(function(e){
+        $("#scan").click(onButtonClick);
+        
+    });
+</script>
+</head>
+<body>
+    <button id="scan">Scan</button>
+    <button id="stop">Stop</button>
+    <h3>Current</h3>
+    <div id="current"><div class="value"></div><div class="alert"></div></div>
+    <h3>Voltage</h3>
+    <div id="voltage"><div class="value"></div><div class="alert"></div></div>
+    <br><br><br>
+    <div id="log"></div>
+   
+</body>
+</html>

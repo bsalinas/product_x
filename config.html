@@ -1,0 +1,113 @@
+<html>
+<head>
+    <script src=product_x.js></script>
+    <script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
+  <script>
+    $(document).ready(function(e){
+        let voltage_yellow = 0;
+        let voltage_red = 0;
+        let connected = false;
+        let ss = new ProductX();
+        $(".connected").hide();
+        $(".disconnected").show();
+        $("#voltage_threshold_submit").click(function(event){
+            event.preventDefault();
+            let new_yellow = parseInt($("#voltage_yellow").val());
+            let new_red = parseInt($("#voltage_red").val());
+            ss.writeVoltageYellow(new_yellow)
+            .then(_ => ss.writeVoltageRed(new_red))
+            .then(_ => {
+                alert("Successfully Wrote Voltage Thresholds");
+            })
+            .catch(error => {
+                alert(error);
+            })
+        })
+        $("#current_threshold_submit").click(function(event){
+            event.preventDefault();
+            let new_yellow = parseInt($("#current_yellow").val());
+            let new_red = parseInt($("#current_red").val());
+            ss.writeCurrentYellow(new_yellow)
+            .then(_ => ss.writeCurrentRed(new_red))
+            .then(_ => {
+                alert("Successfully Wrote Current Thresholds");
+            })
+            .catch(error => {
+                alert(error);
+            })
+        })
+        $("#disconnect").click(function(e){
+            if(connected)
+            {
+                ss.disconnect()
+                $(".connected").hide();
+                $(".disconnected").show();
+                connected = false;
+            }
+        });
+        $("#connect").click(function(e){
+            ss.request()
+              .then(_ => ss.connect())
+              .then(_ => { 
+                console.log("connected");
+              })
+              // .then(_ => ss.readVoltageYellow())
+              // .then((yellow) => {
+              //   voltage_yellow = yellow;
+              // })
+              // .then(_ => ss.readVoltageRed())
+              // .then((red) => {
+              //   voltage_red = red;
+              // })
+              .then(_ => {
+                // console.log("done");
+                connected = true;
+                $(".connected").show();
+                $(".disconnected").hide();
+                // console.log(red,yellow);
+              })
+              .catch(error => { console.log(error) });
+        });
+        
+    })
+  </script>
+</head>
+<body>
+    <button id="connect" class="disconnected">Connect</button>
+    <button id="disconnect" class="connected">Disconnect</button>
+    <div class="connected" style="display:none">
+        <h3>Connected!</h3>
+        <h4>Voltage Thresholds</h4>
+        <div id="voltage_thresholds">
+            <div>
+                <label for="voltage_yellow">Voltage Yellow Threshold</label>
+                <input id="voltage_yellow" placeholder="100"/>
+            </div>
+            <div>
+                <label for="voltage_red">Voltage Red Threshold</label>
+                <input id="voltage_red" placeholder="1000"/>
+            </div>
+            <div>
+                <button id="voltage_threshold_submit">Apply Voltage Changes</button>
+            </div>
+        </div>
+        <h4>Current Thresholds</h4>
+        <div id="current_thresholds">
+            <div>
+                <label for="current_yellow">Current Yellow Threshold</label>
+                <input id="current_yellow" placeholder="100"/>
+            </div>
+            <div>
+                <label for="current_red">Current Red Threshold</label>
+                <input id="current_red" placeholder="1000"/>
+            </div>
+            <div>
+                <button id="current_threshold_submit">Apply Current Changes</button>
+            </div>
+        </div>
+</div>
+</body>
+</html>

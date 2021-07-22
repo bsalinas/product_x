@@ -3,17 +3,20 @@ const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
 const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
 const CURRENT_YELLOW_CHAR = "00000003-1212-efde-1523-780f0000000d"
 const CURRENT_RED_CHAR = "00000004-1212-efde-1523-780f0000000d"
+const VOLTAGE_READING_CHAR = "00000005-1212-efde-1523-780f0000000d"
+const  CURRENT_READING_CHAR = "00000001-1212-efde-1523-780f0000000d"
 class ProductX {
 
-  constructor() {
+  constructor(disconnect_cb) {
     this.device = null;
+    this.disconnect_cb = disconnect_cb;
     this.onDisconnected = this.onDisconnected.bind(this);
   }
   
   request() {
     let options = {
       "filters": [{
-        "namePrefix": "6S"
+        "namePrefix": "Sixth"
       }],
       "optionalServices": [ALERT_SERVICE]
     };
@@ -34,7 +37,11 @@ class ProductX {
   readVoltageYellow() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(VOLTAGE_YELLOW_CHAR))
-    .then(characteristic => characteristic.readValue());
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
   }
 
   writeVoltageYellow(value) {
@@ -47,7 +54,13 @@ class ProductX {
   readVoltageRed() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(VOLTAGE_RED_CHAR))
-    .then(characteristic => characteristic.readValue());
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value);
+        let view = new Uint32Array(value.buffer);
+        console.log(view[0]);
+        return view[0];
+    })
   }
 
   writeVoltageRed(value) {
@@ -61,7 +74,11 @@ class ProductX {
    readCurrentYellow() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_YELLOW_CHAR))
-    .then(characteristic => characteristic.readValue());
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
   }
 
   writeCurrentYellow(value) {
@@ -69,12 +86,17 @@ class ProductX {
     data[0] = value;
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_YELLOW_CHAR))
-    .then(characteristic => characteristic.writeValue(data));
+    .then(characteristic => characteristic.writeValue(data))
+    
   }
   readCurrentRed() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_RED_CHAR))
-    .then(characteristic => characteristic.readValue());
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
   }
 
   writeCurrentRed(value) {
@@ -83,6 +105,25 @@ class ProductX {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_RED_CHAR))
     .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCurrentField() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_READING_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+  readVoltageField() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_READING_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
   }
 
   disconnect() {
@@ -94,6 +135,10 @@ class ProductX {
 
   onDisconnected() {
     console.log('Device is disconnected.');
+    if(this.disconnect_cb)
+    {
+        this.disconnect_cb();
+    }
   }
 }
 

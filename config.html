@@ -5,12 +5,56 @@
   src="https://code.jquery.com/jquery-3.6.0.min.js"
   integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
   crossorigin="anonymous"></script>
+  <style>
+    .stat_parent
+    {
+        background:#f2f2f2;
+        max-width:150px;
+        border-radius:10px;
+        padding:10px;
+        margin:10px;
+        display:inline-block;
+
+    }
+    .stat_parent .stat_value
+    {
+        font-size:2em;
+    }
+    .stat_parent .stat_label
+    {
+        font-size:1em;
+    }
+  </style>
   <script>
     $(document).ready(function(e){
+        let current_timeout = false;
+        let voltage_timeout = false;
+        function onDisconnect(e)
+        {
+            $(".connected").hide();
+            $(".disconnected").show();
+            connected = false;
+            if(current_timeout !== false)
+            {
+                clearInterval(current_timeout);
+                current_timeout = false;
+            }
+            if(voltage_timeout !== false)
+            {
+                clearInterval(voltage_timeout);
+                voltage_timeout = false;
+            }
+            $('#read_current').text("Read Current");
+            $('#read_voltage').text("Read Voltage");
+            $('#field_current').text("---");
+            $('#field_voltage').text("---");
+        }
         let voltage_yellow = 0;
         let voltage_red = 0;
+        let current_yellow = 0;
+        let current_red = 0;
         let connected = false;
-        let ss = new ProductX();
+        let ss = new ProductX(onDisconnect);
         $(".connected").hide();
         $(".disconnected").show();
         $("#voltage_threshold_submit").click(function(event){
@@ -26,6 +70,43 @@
                 alert(error);
             })
         })
+        
+        $("#read_current").click(function(evt){
+            evt.preventDefault();
+            if(current_timeout === false)
+            {
+                $('#read_current').text("Stop Current");
+                current_timeout = setInterval(function(){
+                    ss.readCurrentField()
+                    .then(value =>{
+                        $("#field_current").text(value);
+                    });
+                }, 500);
+            } else
+            {
+                $('#read_current').text("Read Current");
+                clearInterval(current_timeout);
+                current_timeout = false;
+            }
+        });
+        $("#read_voltage").click(function(evt){
+            evt.preventDefault();
+            if(voltage_timeout === false)
+            {
+                $('#read_voltage').text("Stop Voltage");
+                voltage_timeout = setInterval(function(){
+                    ss.readVoltageField()
+                    .then(value =>{
+                        $("#field_voltage").text(value);
+                    });
+                }, 100);
+            } else
+            {
+                $('#read_voltage').text("Read Voltage");
+                clearInterval(voltage_timeout);
+                voltage_timeout = false;
+            }
+        });
         $("#current_threshold_submit").click(function(event){
             event.preventDefault();
             let new_yellow = parseInt($("#current_yellow").val());
@@ -43,9 +124,9 @@
             if(connected)
             {
                 ss.disconnect()
-                $(".connected").hide();
-                $(".disconnected").show();
-                connected = false;
+                // $(".connected").hide();
+                // $(".disconnected").show();
+                // connected = false;
             }
         });
         $("#connect").click(function(e){
@@ -54,14 +135,26 @@
               .then(_ => { 
                 console.log("connected");
               })
-              // .then(_ => ss.readVoltageYellow())
-              // .then((yellow) => {
-              //   voltage_yellow = yellow;
-              // })
-              // .then(_ => ss.readVoltageRed())
-              // .then((red) => {
-              //   voltage_red = red;
-              // })
+              .then(_ => ss.readVoltageYellow())
+              .then((yellow) => {
+                voltage_yellow = yellow;
+                $('#voltage_yellow').val(voltage_yellow);
+              })
+              .then(_ => ss.readVoltageRed())
+              .then((red) => {
+                voltage_red = red;
+                $('#voltage_red').val(voltage_red);
+              })
+              .then(_ => ss.readCurrentYellow())
+              .then((yellow) => {
+                current_yellow = yellow;
+                $('#current_yellow').val(current_yellow);
+              })
+              .then(_ => ss.readCurrentRed())
+              .then((red) => {
+                current_red = red;
+                $('#current_red').val(current_red);
+              })
               .then(_ => {
                 // console.log("done");
                 connected = true;
@@ -78,8 +171,25 @@
 <body>
     <button id="connect" class="disconnected">Connect</button>
     <button id="disconnect" class="connected">Disconnect</button>
+
+    <div class="disconnected">
+        <h3>Disconnected</h3>
+    </div>
     <div class="connected" style="display:none">
         <h3>Connected!</h3>
+        <h4>Live Readings</h4>
+        <div class="stat_parent connected">
+            <div class="stat_label">Voltage</div>
+            <div id="field_voltage" class="stat_value">---</div>
+            <button id="read_voltage">Read Voltage</button>
+            
+        </div>
+        <div class="stat_parent connected">
+            <div class="stat_label">Current</div>
+            <div id="field_current" class="stat_value">---</div>
+            <button id="read_current">Read Current</button>
+            
+        </div>
         <h4>Voltage Thresholds</h4>
         <div id="voltage_thresholds">
             <div>

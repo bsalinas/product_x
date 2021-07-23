@@ -5,6 +5,10 @@
   src="https://code.jquery.com/jquery-3.6.0.min.js"
   integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
   crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
   <style>
     .stat_parent
     {
@@ -29,25 +33,37 @@
     $(document).ready(function(e){
         let current_timeout = false;
         let voltage_timeout = false;
+        function stop_current()
+        {
+          if(current_timeout !== false)
+          {
+           $('#read_current').text("Read Current");
+            clearInterval(current_timeout);
+            current_timeout = false;
+            $('#field_current').text("---");
+          }
+        }
+        function stop_voltage()
+        {
+          if(voltage_timeout !== false)
+          {
+           $('#read_voltage').text("Read Voltage");
+            clearInterval(voltage_timeout);
+            $('#field_voltage').text("---");
+            voltage_timeout = false;
+          }
+        }
         function onDisconnect(e)
         {
+          console.log("Disconnected!");
             $(".connected").hide();
+            $('.working').hide();
             $(".disconnected").show();
             connected = false;
-            if(current_timeout !== false)
-            {
-                clearInterval(current_timeout);
-                current_timeout = false;
-            }
-            if(voltage_timeout !== false)
-            {
-                clearInterval(voltage_timeout);
-                voltage_timeout = false;
-            }
-            $('#read_current').text("Read Current");
-            $('#read_voltage').text("Read Voltage");
-            $('#field_current').text("---");
-            $('#field_voltage').text("---");
+            stop_current();
+            stop_voltage();
+            
+            
         }
         let voltage_yellow = 0;
         let voltage_red = 0;
@@ -56,9 +72,12 @@
         let connected = false;
         let ss = new ProductX(onDisconnect);
         $(".connected").hide();
+        $(".working").hide();
         $(".disconnected").show();
         $("#voltage_threshold_submit").click(function(event){
             event.preventDefault();
+            stop_current();
+            stop_voltage();
             let new_yellow = parseInt($("#voltage_yellow").val());
             let new_red = parseInt($("#voltage_red").val());
             ss.writeVoltageYellow(new_yellow)
@@ -84,9 +103,7 @@
                 }, 500);
             } else
             {
-                $('#read_current').text("Read Current");
-                clearInterval(current_timeout);
-                current_timeout = false;
+                stop_current();
             }
         });
         $("#read_voltage").click(function(evt){
@@ -102,13 +119,13 @@
                 }, 100);
             } else
             {
-                $('#read_voltage').text("Read Voltage");
-                clearInterval(voltage_timeout);
-                voltage_timeout = false;
+                stop_voltage();
             }
         });
         $("#current_threshold_submit").click(function(event){
             event.preventDefault();
+            stop_current();
+            stop_voltage();
             let new_yellow = parseInt($("#current_yellow").val());
             let new_red = parseInt($("#current_red").val());
             ss.writeCurrentYellow(new_yellow)
@@ -123,14 +140,22 @@
         $("#disconnect").click(function(e){
             if(connected)
             {
+              stop_current();
+              stop_voltage();
+              $(".connected").hide();
+                $(".working").show();
                 ss.disconnect()
-                // $(".connected").hide();
+                
                 // $(".disconnected").show();
                 // connected = false;
             }
         });
         $("#connect").click(function(e){
             ss.request()
+              .then(_ => {
+                $(".disconnected").hide();
+                $('.working').show();
+              })
               .then(_ => ss.connect())
               .then(_ => { 
                 console.log("connected");
@@ -160,6 +185,7 @@
                 connected = true;
                 $(".connected").show();
                 $(".disconnected").hide();
+                $('.working').hide();
                 // console.log(red,yellow);
               })
               .catch(error => { console.log(error) });
@@ -167,57 +193,89 @@
         
     })
   </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Product X Config</title>
 </head>
 <body>
-    <button id="connect" class="disconnected">Connect</button>
-    <button id="disconnect" class="connected">Disconnect</button>
-
-    <div class="disconnected">
+  <div class="container">
+    <div class="row">
+      <h1>Product X Configurator</h1>
+    </div>
+    <div class="row">
+      <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>
+      <a href="#" id="disconnect" class="connected btn btn-primary">Disconnect</a>
+    </div>
+    <div class="row working">
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <div class="row disconnected">
         <h3>Disconnected</h3>
     </div>
-    <div class="connected" style="display:none">
-        <h3>Connected!</h3>
-        <h4>Live Readings</h4>
-        <div class="stat_parent connected">
-            <div class="stat_label">Voltage</div>
-            <div id="field_voltage" class="stat_value">---</div>
-            <button id="read_voltage">Read Voltage</button>
-            
+    <div class="connected">
+        <div class="row">
+          <h3>Connected!</h3>
         </div>
-        <div class="stat_parent connected">
-            <div class="stat_label">Current</div>
-            <div id="field_current" class="stat_value">---</div>
-            <button id="read_current">Read Current</button>
-            
+        <div class="row">
+          <h4>Live Readings</h4>
         </div>
-        <h4>Voltage Thresholds</h4>
-        <div id="voltage_thresholds">
-            <div>
-                <label for="voltage_yellow">Voltage Yellow Threshold</label>
-                <input id="voltage_yellow" placeholder="100"/>
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                  <div class="card-subtitle">Voltage</div>
+                  <h4 id="field_voltage" class="card-title">---</h4>
+                  <a href="#" id="read_voltage" class="btn btn-primary">Read Voltage</a>
+                </div>
+                
             </div>
-            <div>
-                <label for="voltage_red">Voltage Red Threshold</label>
-                <input id="voltage_red" placeholder="1000"/>
+          </div>
+          <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                  <div class="card-subtitle">Current</div>
+                  <h4 id="field_current" class="card-title">---</h4>
+                  <a href="#" id="read_current" class="btn btn-primary">Read Current</a>
+                </div>
+                
             </div>
-            <div>
-                <button id="voltage_threshold_submit">Apply Voltage Changes</button>
-            </div>
+          </div>
         </div>
-        <h4>Current Thresholds</h4>
-        <div id="current_thresholds">
-            <div>
-                <label for="current_yellow">Current Yellow Threshold</label>
-                <input id="current_yellow" placeholder="100"/>
-            </div>
-            <div>
-                <label for="current_red">Current Red Threshold</label>
-                <input id="current_red" placeholder="1000"/>
-            </div>
-            <div>
-                <button id="current_threshold_submit">Apply Current Changes</button>
-            </div>
+        <div class="row">
+          <h4>Voltage Thresholds</h4>
         </div>
+        <div class="row">
+          <form id="voltage_thresholds">
+              <div class="form-group">
+                  <label for="voltage_yellow">Voltage Yellow Threshold</label>
+                  <input id="voltage_yellow" placeholder="100"/>
+              </div>
+              <div class="form-group">
+                  <label for="voltage_red">Voltage Red Threshold</label>
+                  <input id="voltage_red" placeholder="1000"/>
+              </div>
+              <button href="#" class="btn btn-primary" id="voltage_threshold_submit">Apply Voltage Changes</button>
+          </form>
+        </div>
+        <div class="row">
+          <h4>Current Thresholds</h4>
+        </div>
+        <div class="row">
+          <form id="current_thresholds">
+              <div class="form-group">
+                  <label for="current_yellow">Current Yellow Threshold</label>
+                  <input id="current_yellow" placeholder="100"/>
+              </div>
+              <div class="form-group">
+                  <label for="current_red">Current Red Threshold</label>
+                  <input id="current_red" placeholder="1000"/>
+              </div>
+                <button href="#" class="btn btn-primary" id="current_threshold_submit">Apply Current Changes</button>
+          </div>
+        </div>
+  </div>
 </div>
 </body>
 </html>

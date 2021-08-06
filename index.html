@@ -67,8 +67,10 @@
         }
         let voltage_yellow = 0;
         let voltage_red = 0;
+        let voltage_realert = 0;
         let current_yellow = 0;
         let current_red = 0;
+        let current_realert = 0;
         let connected = false;
         let ss = new ProductX(onDisconnect);
         $(".connected").hide();
@@ -80,8 +82,10 @@
             stop_voltage();
             let new_yellow = parseInt($("#voltage_yellow").val());
             let new_red = parseInt($("#voltage_red").val());
+            let new_realert = parseInt($("#voltage_realert").val());
             ss.writeVoltageYellow(new_yellow)
             .then(_ => ss.writeVoltageRed(new_red))
+            .then(_ => ss.writeVoltageRealert(new_realert))
             .then(_ => {
                 alert("Successfully Wrote Voltage Thresholds");
             })
@@ -122,14 +126,29 @@
                 stop_voltage();
             }
         });
+        $('#algorithm_config_submit').click(function(event){
+            event.preventDefault();
+            stop_current();
+            stop_voltage();
+            let new_mode = parseInt($("#algorithm_mode").val());
+            ss.writeAlgorithmConfig(new_mode)
+            .then(_ => {
+                alert("Successfully Wrote Algorithm Mode");
+            })
+            .catch(error => {
+                alert(error);
+            })
+        });
         $("#current_threshold_submit").click(function(event){
             event.preventDefault();
             stop_current();
             stop_voltage();
             let new_yellow = parseInt($("#current_yellow").val());
             let new_red = parseInt($("#current_red").val());
+            let new_realert = parseInt($("#current_realert").val());
             ss.writeCurrentYellow(new_yellow)
             .then(_ => ss.writeCurrentRed(new_red))
+            .then(_ => ss.writeCurrentRealert(new_realert))
             .then(_ => {
                 alert("Successfully Wrote Current Thresholds");
             })
@@ -137,6 +156,50 @@
                 alert(error);
             })
         })
+        let tim = false;
+        let voltage_only = true;
+        $("#break_it").click(function(event){
+            event.preventDefault();
+            stop_current();
+            stop_voltage();
+            if(!tim)
+            {
+                tim = setInterval(function(){
+                    if(voltage_only)
+                    {
+                        //0 is VOLTAGE_PRIORITY
+                        //1 is CURRENT_PRIORITY
+                        //2 is VOLTAGE ONLY
+                        ss.writeAlgorithmConfig(2)
+                        voltage_only = false;
+                    } else{
+                        //3 is CURRENT_ONLY
+                        ss.writeAlgorithmConfig(3)
+                        voltage_only = true;
+                    }
+                }, 1000);
+                $('#break_it').text("Breaking....");
+            } else{
+                clearInterval(tim);
+                tim = false;
+                $('#break_it').text("Break it!");
+            }
+        });
+        $('#ux_values_submit').click(function(event){
+            event.preventDefault();
+            stop_current();
+            stop_voltage();
+            let new_brightness = parseFloat($("#brightness").val())
+            let scaled_brightness = 255.0*new_brightness/100.0;
+            ss.writeBrightness(scaled_brightness)
+            .then(_=>{
+                alert("Successfully Wrote UX Settings");
+            })
+            .catch(error => {
+                alert(error);
+            })
+
+        });
         $("#disconnect").click(function(e){
             if(connected)
             {
@@ -179,6 +242,24 @@
               .then((red) => {
                 current_red = red;
                 $('#current_red').val(current_red);
+              })
+              .then(_ => ss.readCurrentRealert())
+              .then((realert) => {
+                current_realert = realert;
+                $("#current_realert").val(current_realert);
+              })
+              .then(_ => ss.readVoltageRealert())
+              .then((realert) => {
+                voltage_realert = realert;
+                $("#voltage_realert").val(voltage_realert);
+              })
+              .then(_ => ss.readBrightness())
+              .then((brightness) => {
+                $("#brightness").val(100*brightness/255)
+              })
+              .then(_ => ss.readAlgorithmConfig())
+              .then(config => {
+                $('#algorithm_mode').val(config);
               })
               .then(_ => {
                 // console.log("done");
@@ -244,6 +325,26 @@
           </div>
         </div>
         <div class="row">
+            <button href="#" class="btn btn-danger" id="break_it">Break it!</button>
+        </div>
+         <div class="row">
+          <h4>Algorithm Configuration</h4>
+        </div>
+        <div class="row">
+          <form id="algorithm_config">
+              <div class="form-group">
+                  <label for="algorithm_mode">Algorithm Mode</label>
+                  <select id="algorithm_mode">
+                    <option value="0">Voltage Priority (Voltage + Current Enabled)</option>
+                    <!-- <option value="1">Current Priority (Voltage + Current Enabled)</option> -->
+                    <option value="2">Only Voltage Enabled</option>
+                    <option value="3">Only Current Enabled</option>
+                  </select>
+              </div>
+              <button href="#" class="btn btn-primary" id="algorithm_config_submit">Apply Mode Changes</button>
+          </form>
+        </div>
+        <div class="row">
           <h4>Voltage Thresholds</h4>
         </div>
         <div class="row">
@@ -255,6 +356,10 @@
               <div class="form-group">
                   <label for="voltage_red">Voltage Red Threshold</label>
                   <input id="voltage_red" placeholder="1000"/>
+              </div>
+              <div class="form-group">
+                  <label for="voltage_realert">Voltage Realert Threshold</label>
+                  <input id="voltage_realert" placeholder="1000"/>
               </div>
               <button href="#" class="btn btn-primary" id="voltage_threshold_submit">Apply Voltage Changes</button>
           </form>
@@ -272,9 +377,25 @@
                   <label for="current_red">Current Red Threshold</label>
                   <input id="current_red" placeholder="1000"/>
               </div>
+              <div class="form-group">
+                  <label for="current_realert">Current Realert Threshold</label>
+                  <input id="current_realert" placeholder="1000"/>
+              </div>
                 <button href="#" class="btn btn-primary" id="current_threshold_submit">Apply Current Changes</button>
+            </form>
           </div>
+        <div class="row">
+            <h4>UX Settings</h4>
         </div>
+        <div class="row">
+            <form id="ux_values">
+              <div class="form-group">
+                  <label for="brightness">Brightness (0-100%)</label>
+                  <input id="brightness" placeholder="100%"/>
+              </div>
+              <button href="#" class="btn btn-primary" id="ux_values_submit">Apply UX Changes</button>
+          </form>
+      </div>
   </div>
 </div>
 </body>

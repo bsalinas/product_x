@@ -1,10 +1,18 @@
 const ALERT_SERVICE = "00000000-1212-efde-1523-780f0000000d"
-const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
-const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
+const CURRENT_READING_CHAR = "00000001-1212-efde-1523-780f0000000d"
+const CURRENT_REALERT_CHAR = "00000002-1212-efde-1523-780f0000000d"
 const CURRENT_YELLOW_CHAR = "00000003-1212-efde-1523-780f0000000d"
 const CURRENT_RED_CHAR = "00000004-1212-efde-1523-780f0000000d"
 const VOLTAGE_READING_CHAR = "00000005-1212-efde-1523-780f0000000d"
-const  CURRENT_READING_CHAR = "00000001-1212-efde-1523-780f0000000d"
+const VOLTAGE_REALERT_CHAR = "00000006-1212-efde-1523-780f0000000d" 
+const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
+const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
+
+const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
+
+const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
+const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
+
 class ProductX {
 
   constructor(disconnect_cb) {
@@ -18,7 +26,7 @@ class ProductX {
       "filters": [{
         "namePrefix": "Sixth"
       }],
-      "optionalServices": [ALERT_SERVICE]
+      "optionalServices": [ALERT_SERVICE, UI_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)
     .then(device => {
@@ -70,6 +78,25 @@ class ProductX {
     .then(service => service.getCharacteristic(VOLTAGE_RED_CHAR))
     .then(characteristic => characteristic.writeValue(data));
   }
+  readVoltageRealert() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_REALERT_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value);
+        let view = new Uint32Array(value.buffer);
+        console.log(view[0]);
+        return view[0];
+    })
+  }
+
+  writeVoltageRealert(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_REALERT_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
 
    readCurrentYellow() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
@@ -107,6 +134,24 @@ class ProductX {
     .then(characteristic => characteristic.writeValue(data));
   }
 
+  readCurrentRealert() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_REALERT_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeCurrentRealert(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_REALERT_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
   readCurrentField() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_READING_CHAR))
@@ -124,6 +169,44 @@ class ProductX {
         let view = new Uint32Array(value.buffer);
         return view[0];
     })
+  }
+
+  readBrightness()
+  {
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeBrightness(value)
+  {
+    if(value > 255) value = 255;
+    let data = new Uint8Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  
+  readAlgorithmConfig() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeAlgorithmConfig(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
   }
 
   disconnect() {

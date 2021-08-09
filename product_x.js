@@ -13,6 +13,9 @@ const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
 const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
 
+
+const DEVICE_INFORMATION_SERVICE = 0x180a
+const FW_VERSION = 0x2a26
 class ProductX {
 
   constructor(disconnect_cb) {
@@ -26,7 +29,7 @@ class ProductX {
       "filters": [{
         "namePrefix": "Sixth"
       }],
-      "optionalServices": [ALERT_SERVICE, UI_SERVICE]
+      "optionalServices": [ALERT_SERVICE, UI_SERVICE, DEVICE_INFORMATION_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)
     .then(device => {
@@ -207,6 +210,20 @@ class ProductX {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
     .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readFirmwareVersion(){
+    return this.device.gatt.getPrimaryService(DEVICE_INFORMATION_SERVICE)
+    .then(service => service.getCharacteristic(FW_VERSION))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value)
+        let enc = new TextDecoder("utf-8");
+        let arr = new Uint8Array(value.buffer);
+        let version = enc.decode(arr);
+        console.log(version)
+        return version;
+    })
   }
 
   disconnect() {

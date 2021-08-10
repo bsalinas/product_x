@@ -232,10 +232,10 @@
               .then(config => {
                 $('#algorithm_mode').val(config);
               })
-              .then(_=> ss.readFirmwareVersion())
-              .then((fw_version) => {
-                $('#fw_version').text("Firmware: v"+fw_version)
-              })
+              // .then(_=> ss.readFirmwareVersion())
+              // .then((fw_version) => {
+              //   $('#fw_version').text("Firmware: v"+fw_version)
+              // })
               .then(_ => {
                 // console.log("done");
                 connected = true;
@@ -257,6 +257,7 @@
   <div class="container">
     <div class="row">
       <h1>SixthSense Configurator</h1>
+      <p>1</p>
     </div>
     <div class="row">
       <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>

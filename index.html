@@ -224,18 +224,18 @@
               //   voltage_realert = realert;
               //   $("#voltage_realert").val(voltage_realert);
               // })
-              // .then(_ => ss.readBrightness())
-              // .then((brightness) => {
-              //   $("#brightness").val(parseInt(100*brightness/255))
-              // })
+              .then(_ => ss.readBrightness())
+              .then((brightness) => {
+                $("#brightness").val(parseInt(100*brightness/255))
+              })
               .then(_ => ss.readAlgorithmConfig())
               .then(config => {
                 $('#algorithm_mode').val(config);
               })
-              // .then(_=> ss.readFirmwareVersion())
-              // .then((fw_version) => {
-              //   $('#fw_version').text("Firmware: v"+fw_version)
-              // })
+              .then(_=> ss.readFirmwareVersion())
+              .then((fw_version) => {
+                $('#fw_version').text("Firmware: v"+fw_version)
+              })
               .then(_ => {
                 // console.log("done");
                 connected = true;

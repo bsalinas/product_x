@@ -36,9 +36,6 @@ class ProductX {
       this.device = device;
       this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
     })
-    .error(error =>{
-        alert(error);
-    });
   }
   
   connect() {

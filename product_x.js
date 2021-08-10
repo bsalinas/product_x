@@ -196,12 +196,28 @@ class ProductX {
   
   readAlgorithmConfig() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
-    .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
-    .then(characteristic => characteristic.readValue())
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == ALGORITHM_CONFIG)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    // .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    // .then(characteristic => characteristic.readValue())
+    // .error(error => {
+    //     return 0;
+    // })
     .then(value => {
         let view = new Uint32Array(value.buffer);
         return view[0];
     })
+
   }
 
   writeAlgorithmConfig(value) {

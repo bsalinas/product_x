@@ -82,10 +82,10 @@
             stop_voltage();
             let new_yellow = parseInt($("#voltage_yellow").val());
             let new_red = parseInt($("#voltage_red").val());
-            let new_realert = parseInt($("#voltage_realert").val());
+            // let new_realert = parseInt($("#voltage_realert").val());
             ss.writeVoltageYellow(new_yellow)
             .then(_ => ss.writeVoltageRed(new_red))
-            .then(_ => ss.writeVoltageRealert(new_realert))
+            // .then(_ => ss.writeVoltageRealert(new_realert))
             .then(_ => {
                 alert("Successfully Wrote Voltage Thresholds");
             })
@@ -145,10 +145,10 @@
             stop_voltage();
             let new_yellow = parseInt($("#current_yellow").val());
             let new_red = parseInt($("#current_red").val());
-            let new_realert = parseInt($("#current_realert").val());
+            // let new_realert = parseInt($("#current_realert").val());
             ss.writeCurrentYellow(new_yellow)
             .then(_ => ss.writeCurrentRed(new_red))
-            .then(_ => ss.writeCurrentRealert(new_realert))
+            // .then(_ => ss.writeCurrentRealert(new_realert))
             .then(_ => {
                 alert("Successfully Wrote Current Thresholds");
             })
@@ -214,16 +214,16 @@
                 current_red = red;
                 $('#current_red').val(current_red);
               })
-              .then(_ => ss.readCurrentRealert())
-              .then((realert) => {
-                current_realert = realert;
-                $("#current_realert").val(current_realert);
-              })
-              .then(_ => ss.readVoltageRealert())
-              .then((realert) => {
-                voltage_realert = realert;
-                $("#voltage_realert").val(voltage_realert);
-              })
+              // .then(_ => ss.readCurrentRealert())
+              // .then((realert) => {
+              //   current_realert = realert;
+              //   $("#current_realert").val(current_realert);
+              // })
+              // .then(_ => ss.readVoltageRealert())
+              // .then((realert) => {
+              //   voltage_realert = realert;
+              //   $("#voltage_realert").val(voltage_realert);
+              // })
               .then(_ => ss.readBrightness())
               .then((brightness) => {
                 $("#brightness").val(parseInt(100*brightness/255))
@@ -335,10 +335,10 @@
                   <label for="voltage_red">Voltage Red Threshold</label>
                   <input id="voltage_red" placeholder="1000"/>
               </div>
-              <div class="form-group">
+              <!-- <div class="form-group">
                   <label for="voltage_realert">Voltage Realert Threshold</label>
                   <input id="voltage_realert" placeholder="1000"/>
-              </div>
+              </div> -->
               <button href="#" class="btn btn-primary" id="voltage_threshold_submit">Apply Voltage Changes</button>
           </form>
         </div>
@@ -355,10 +355,10 @@
                   <label for="current_red">Current Red Threshold</label>
                   <input id="current_red" placeholder="1000"/>
               </div>
-              <div class="form-group">
+             <!--  <div class="form-group">
                   <label for="current_realert">Current Realert Threshold</label>
                   <input id="current_realert" placeholder="1000"/>
-              </div>
+              </div> -->
                 <button href="#" class="btn btn-primary" id="current_threshold_submit">Apply Current Changes</button>
             </form>
           </div>

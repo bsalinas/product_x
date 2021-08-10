@@ -26,9 +26,10 @@ class ProductX {
   
   request() {
     let options = {
-      "filters": [{
-        "namePrefix": "Sixth"
-      }],
+      // "filters": [{
+      //   "namePrefix": "Sixth"
+      // }],
+      "acceptAllDevices":true,
       "optionalServices": [ALERT_SERVICE, UI_SERVICE, DEVICE_INFORMATION_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)

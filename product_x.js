@@ -29,7 +29,7 @@ class ProductX {
       "filters": [{
         "namePrefix": "Sixth"
       }],
-      "optionalServices": [ALERT_SERVICE]
+      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)
     .then(device => {

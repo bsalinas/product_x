@@ -224,10 +224,10 @@
               //   voltage_realert = realert;
               //   $("#voltage_realert").val(voltage_realert);
               // })
-              .then(_ => ss.readBrightness())
-              .then((brightness) => {
-                $("#brightness").val(parseInt(100*brightness/255))
-              })
+              // .then(_ => ss.readBrightness())
+              // .then((brightness) => {
+              //   $("#brightness").val(parseInt(100*brightness/255))
+              // })
               .then(_ => ss.readAlgorithmConfig())
               .then(config => {
                 $('#algorithm_mode').val(config);
@@ -257,7 +257,7 @@
   <div class="container">
     <div class="row">
       <h1>SixthSense Configurator</h1>
-      <p>1</p>
+      <p>2</p>
     </div>
     <div class="row">
       <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>

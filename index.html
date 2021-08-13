@@ -93,6 +93,19 @@
                 alert(error);
             })
         })
+        $("#crew_mode_submit").click(function(evt){
+            evt.preventDefault();
+            let new_channel = parseInt($("#crew_channel").val());
+            let new_enabled = parseInt($("#crew_mode_enable").val());
+            ss.writeCrewChannel(new_channel)
+            .then(_ => ss.writeCrewModeForcedEnabled(new_enabled))
+            .then(_ =>{
+                alert("Successfully Wrote Crew Mode Settings");
+            })
+            .catch(error =>{
+                alert(error);
+            })
+        });
         
         $("#read_current").click(function(evt){
             evt.preventDefault();
@@ -231,6 +244,14 @@
               .then(_ => ss.readAlgorithmConfig())
               .then(config => {
                 $('#algorithm_mode').val(config);
+              })
+              .then(_=> ss.readCrewChannel())
+              .then(channel => {
+                $('#crew_channel').val(channel);
+              })
+              .then(_=> ss.readCrewModeForcedEnabled())
+              .then(forced =>{
+                $('#crew_mode_enable').val(forced);
               })
               .then(_=> ss.readFirmwareVersion())
               .then((fw_version) => {
@@ -375,6 +396,43 @@
                   <input id="brightness" placeholder="100%"/>
               </div>
               <button href="#" class="btn btn-primary" id="ux_values_submit">Apply UX Changes</button>
+          </form>
+      </div>
+      <div class="row">
+            <h4>Crew Mode Settings</h4>
+        </div>
+        <div class="row">
+          <h6>FW v0.7.0+ only</h6>
+        </div>
+        <div class="row">
+            <form id="crew_mode">
+              <div class="form-group">
+                <!--    CREW_CHANNEL_YELLOW = 0x00, //default
+    CREW_CHANNEL_ORANGE = 0x01,
+    CREW_CHANNEL_BLUE = 0x02,
+    CREW_CHANNEL_PINK = 0x03,
+    CREW_CHANNEL_RED_GLOBAL = 0xFF
+
+-->
+                  <label for="crew_channel">Crew Channel</label>
+                  <select id="crew_channel">
+                    <option value="0">Yellow (Default) </option>
+                    <option value="1">Orange</option>
+                    <option value="2">Blue</option>
+                    <option value="3">Pink</option>
+                    <option value="255">Red (GLOBAL)</option>
+                  </select>
+                  <p>Selecting "Red (GLOBAL)" will cause you to get alerts from all crew channels</p>
+                  <p>Units will default to "Yellow", so at first everyone will be on the Yellow channel.</p>
+              </div>
+              <div class="form-group">
+                  <label for="crew_mode_enable">Crew Mode Enabled</label>
+                  <select id="crew_mode_enable">
+                    <option value="0">Selectable (Long Press While Turning On)</option>
+                    <option value="1">Always Enabled</option>
+                  </select>
+              </div>
+              <button href="#" class="btn btn-primary" id="crew_mode_submit">Apply Crew Mode Changes</button>
           </form>
       </div>
   </div>

@@ -28,7 +28,7 @@ class ProductX {
   
   request() {
     let options = {
-      "filters": [{
+      "filters": [{ 
         "namePrefix": "Sixth"
       }],
       "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE]

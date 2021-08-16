@@ -9,6 +9,8 @@ const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
 const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
 
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
+const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
+const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
 
 const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
@@ -217,7 +219,6 @@ class ProductX {
         let view = new Uint32Array(value.buffer);
         return view[0];
     })
-
   }
 
   writeAlgorithmConfig(value) {
@@ -225,6 +226,62 @@ class ProductX {
     data[0] = value;
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCrewChannel() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == CREW_CHANNEL)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("crew channel is",view[0])
+        return view[0];
+    })
+  }
+  writeCrewChannel(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    console.log("writeCrewChannel",value);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CREW_CHANNEL))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCrewModeForcedEnabled() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == CREW_MODE_FORCED_ENABLED)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeCrewModeForcedEnabled(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CREW_MODE_FORCED_ENABLED))
     .then(characteristic => characteristic.writeValue(data));
   }
 

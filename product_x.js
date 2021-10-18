@@ -102,7 +102,7 @@ class ProductX {
     data[0] = value;
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(VOLTAGE_REALERT_CHAR))
-    .then(characteristic => characteristic.writeValue(data));
+    .then(characteristic => characteristic.writeValue(data))
   }
 
    readCurrentYellow() {

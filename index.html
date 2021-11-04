@@ -96,12 +96,33 @@
         })
         $("#crew_mode_submit").click(function(evt){
             evt.preventDefault();
+            stop_current();
+            stop_voltage();
             let new_channel = parseInt($("#crew_channel").val());
             let new_enabled = parseInt($("#crew_mode_enable").val());
             ss.writeCrewChannel(new_channel)
             .then(_ => ss.writeCrewModeForcedEnabled(new_enabled))
             .then(_ =>{
                 alert("Successfully Wrote Crew Mode Settings");
+            })
+            .catch(error =>{
+                alert(error);
+            })
+        });
+        $("#filter_submit").click(function(evt){
+            evt.preventDefault();
+            stop_current();
+            stop_voltage();
+            let low_threshold = parseInt($("#low_filter_threshold").val());
+            let low_alpha = parseFloat($("#low_filter_alpha").val());
+            let mid_threshold = parseInt($("#mid_filter_threshold").val());
+            let mid_alpha = parseFloat($("#mid_filter_alpha").val());
+            ss.writeLowFilterThreshold(low_threshold)
+            .then(_ => ss.writeLowFilterAlpha(low_alpha))
+            .then(_ => ss.writeMidFilterThreshold(mid_threshold))
+            .then(_ => ss.writeMidFilterAlpha(mid_alpha))
+            .then(_ =>{
+                alert("Successfully Wrote Filter Settings");
             })
             .catch(error =>{
                 alert(error);
@@ -257,6 +278,22 @@
               .then(_=> ss.readFirmwareVersion())
               .then((fw_version) => {
                 $('#fw_version').text("Firmware: v"+fw_version)
+              })
+              .then(_=> ss.readLowFilterThreshold())
+              .then((value) =>{
+                $('#low_filter_threshold').val(value);
+              })
+              .then(_=> ss.readLowFilterAlpha())
+              .then((value) =>{
+                $('#low_filter_alpha').val(value);
+              })
+              .then(_=> ss.readMidFilterThreshold())
+              .then((value) =>{
+                $('#mid_filter_threshold').val(value);
+              })
+              .then(_=> ss.readMidFilterAlpha())
+              .then((value) =>{
+                $('#mid_filter_alpha').val(value);
               })
               .then(_ => {
                 // console.log("done");
@@ -436,7 +473,31 @@
               <button href="#" class="btn btn-primary" id="crew_mode_submit">Apply Crew Mode Changes</button>
           </form>
       </div>
+        <div class="row">
+          <h4>Low Voltage Filtering</h4>
+          </div>
+          <div class="row">
+            <h6>FW v0.10.0+ only</h6>
+          </div>
+          <div class="row">
+              <form id="low_filter">
+                <div class="form-group">
+                    <label for="low_filter_threshold">Low Threshold</label>
+                    <input id="low_filter_threshold" placeholder="300"/>
+                    <label for="low_filter_alpha">Low Alpha</label>
+                    <input id="low_filter_alpha" placeholder="0.90"/>
+                </div>
+                <div class="form-group">
+                  <label for="mid_filter_threshold">Mid Threshold</label>
+                  <input id="mid_filter_threshold" placeholder="300"/>
+                  <label for="mid_filter_alpha">Mid Alpha</label>
+                  <input id="mid_filter_alpha" placeholder="0.90"/>
+                </div>
+                <button href="#" class="btn btn-primary" id="filter_submit">Apply Filter Changes</button>
+            </form>
+          </div>
+      </div>
   </div>
-</div>
+
 </body>
 </html>

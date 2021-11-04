@@ -386,7 +386,7 @@ class ProductX {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(MID_FILTER_ALPHA))
     .then(characteristic => characteristic.writeValue(data));
-  }
+  } 
   readMidFilterThreshold() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service=> service.getCharacteristics())

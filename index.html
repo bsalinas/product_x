@@ -29,6 +29,10 @@
     {
         font-size:1em;
     }
+    label
+    {
+      font-weight: 800;
+    }
   </style>
   <script>
     $(document).ready(function(e){
@@ -115,12 +119,12 @@
             stop_voltage();
             let low_threshold = parseInt($("#low_filter_threshold").val());
             let low_alpha = parseFloat($("#low_filter_alpha").val());
-            let mid_threshold = parseInt($("#mid_filter_threshold").val());
-            let mid_alpha = parseFloat($("#mid_filter_alpha").val());
+            let delta_threshold = parseInt($("#delta_filter_threshold").val());
+            let delta_alpha = parseFloat($("#delta_filter_alpha").val());
             ss.writeLowFilterThreshold(low_threshold)
             .then(_ => ss.writeLowFilterAlpha(low_alpha))
-            .then(_ => ss.writeMidFilterThreshold(mid_threshold))
-            .then(_ => ss.writeMidFilterAlpha(mid_alpha))
+            .then(_ => ss.writeDeltaFilterThreshold(delta_threshold))
+            .then(_ => ss.writeDeltaFilterAlpha(delta_alpha))
             .then(_ =>{
                 alert("Successfully Wrote Filter Settings");
             })
@@ -287,13 +291,13 @@
               .then((value) =>{
                 $('#low_filter_alpha').val(value);
               })
-              .then(_=> ss.readMidFilterThreshold())
+              .then(_=> ss.readDeltaFilterThreshold())
               .then((value) =>{
-                $('#mid_filter_threshold').val(value);
+                $('#delta_filter_threshold').val(value);
               })
-              .then(_=> ss.readMidFilterAlpha())
+              .then(_=> ss.readDeltaFilterAlpha())
               .then((value) =>{
-                $('#mid_filter_alpha').val(value);
+                $('#delta_filter_alpha').val(value);
               })
               .then(_ => {
                 // console.log("done");
@@ -483,15 +487,21 @@
               <form id="low_filter">
                 <div class="form-group">
                     <label for="low_filter_threshold">Low Threshold</label>
-                    <input id="low_filter_threshold" placeholder="300"/>
+                    <input id="low_filter_threshold" placeholder="500"/>
                     <label for="low_filter_alpha">Low Alpha</label>
                     <input id="low_filter_alpha" placeholder="0.90"/>
+                    <p>Alpha = 0.9 means trust the old average 90% and the new data 10%, so it will be slow to react</p>
+                    <p>We will use this alpha whenever the new reading is less than the threshold</p>
+                    <p>This is used to reduce the noise we have at low field strengths.</p>
                 </div>
                 <div class="form-group">
-                  <label for="mid_filter_threshold">Mid Threshold</label>
-                  <input id="mid_filter_threshold" placeholder="300"/>
-                  <label for="mid_filter_alpha">Mid Alpha</label>
-                  <input id="mid_filter_alpha" placeholder="0.90"/>
+                  <label for="delta_filter_threshold">Delta Threshold</label>
+                  <input id="delta_filter_threshold" placeholder="75"/>
+                  <label for="delta_filter_alpha">Delta Alpha</label>
+                  <input id="delta_filter_alpha" placeholder="0.25"/>
+                  <p>Alpha = 0.25 means trust the old average 25% and the new data 75%, so it will be fast</p>
+                  <p>We will use this alpha whenever the difference between the old average and the new reading is greater than this threshold</p>
+                  <p>This is used to quickly react when there is a big change in the field (growing quickly or shrinking quickly)</p>
                 </div>
                 <button href="#" class="btn btn-primary" id="filter_submit">Apply Filter Changes</button>
             </form>

@@ -14,8 +14,8 @@ const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
 
 const LOW_FILTER_THRESHOLD = "0000000c-1212-efde-1523-780f0000000d"
 const LOW_FILTER_ALPHA = "0000000d-1212-efde-1523-780f0000000d"
-const MID_FILTER_THRESHOLD = "0000000e-1212-efde-1523-780f0000000d"
-const MID_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_THRESHOLD = "0000000e-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
 
 const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
@@ -359,14 +359,14 @@ class ProductX {
     .then(service => service.getCharacteristic(LOW_FILTER_ALPHA))
     .then(characteristic => characteristic.writeValue(data));
   }
-  readMidFilterAlpha() {
+  readDeltaFilterAlpha() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service=> service.getCharacteristics())
     .then(all_characteristics => {
         for(let idx in all_characteristics)
         {
             let ch = all_characteristics[idx];
-            if(ch.uuid == MID_FILTER_ALPHA)
+            if(ch.uuid == DELTA_FILTER_ALPHA)
             {
                 return ch.readValue();
             }
@@ -375,26 +375,26 @@ class ProductX {
     })
     .then(value => {
         let view = new Uint32Array(value.buffer);
-        console.log("readMidFilterAlpha ",view[0]);
+        console.log("readDeltaFilterAlpha ",view[0]);
         return view[0]/1000.0;
     })
   }
-  writeMidFilterAlpha(value) {
+  writeDeltaFilterAlpha(value) {
     let data = new Uint32Array(1);
     data[0] = (value*1000);
-    console.log("writeMidFilterAlpha ",value," ",data[0]);
+    console.log("writeDeltaFilterAlpha ",value," ",data[0]);
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
-    .then(service => service.getCharacteristic(MID_FILTER_ALPHA))
+    .then(service => service.getCharacteristic(DELTA_FILTER_ALPHA))
     .then(characteristic => characteristic.writeValue(data));
   } 
-  readMidFilterThreshold() {
+  readDeltaFilterThreshold() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service=> service.getCharacteristics())
     .then(all_characteristics => {
         for(let idx in all_characteristics)
         {
             let ch = all_characteristics[idx];
-            if(ch.uuid == MID_FILTER_THRESHOLD)
+            if(ch.uuid == DELTA_FILTER_THRESHOLD)
             {
                 return ch.readValue();
             }
@@ -406,11 +406,11 @@ class ProductX {
         return view[0];
     })
   }
-  writeMidFilterThreshold(value) {
+  writeDeltaFilterThreshold(value) {
     let data = new Uint32Array(1);
     data[0] = value;
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
-    .then(service => service.getCharacteristic(MID_FILTER_THRESHOLD))
+    .then(service => service.getCharacteristic(DELTA_FILTER_THRESHOLD))
     .then(characteristic => characteristic.writeValue(data));
   }
   disconnect() {

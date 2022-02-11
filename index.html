@@ -29,6 +29,10 @@
     {
         font-size:1em;
     }
+    textarea{
+      width: 100%;
+      min-height: 10em;
+    }
     label
     {
       font-weight: 800;
@@ -209,6 +213,33 @@
                 alert(error);
             })
 
+        });
+        $("#sound_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let sound_text = $("#sound_content").val();
+          // console.log(sound_text);
+          let lines = sound_text.split("\n");
+          let sound = []
+          let sound_idx = 0;
+          for(line_idx in lines)
+          {
+            let line = lines[line_idx];
+            let values = line.split(",")
+            if(values.length != 2)
+            {
+              alert("Incorrect formatting on line \""+line+"\"");
+            } else if(sound_idx < 10){
+              sound.push({frequency:values[0], duration:values[1]})  
+              sound_idx++;
+            } else
+            {
+              alert("Too many tones. Max is 10");
+            }
+          }
+          console.log(sound);
+          ss.writeSound(sound).then(_=>{alert("Successfully wrote Sound")})
         });
         $("#disconnect").click(function(e){
             if(connected)
@@ -504,6 +535,19 @@
                   <p>This is used to quickly react when there is a big change in the field (growing quickly or shrinking quickly)</p>
                 </div>
                 <button href="#" class="btn btn-primary" id="filter_submit">Apply Filter Changes</button>
+            </form>
+          </div>
+          <div>
+            <div class="row">
+              <h4>Sounds</h4>
+            </div>
+            <form id="sound">
+              <p>Each row should be "frequency,duration" with frequency in Hz and duration in milliseconds(min of 50ms).</p>
+              <p> For a pause with no sound, use 0 Hz. There is a maximum of 10 tones at this time. The sound will be played when you press the button on the Sixth Sense</p>
+              <div class="form-group">
+              <textarea id="sound_content" placeholder="3000,100&#10;4000,200"></textarea>
+            </div>
+              <button href="#" class="btn btn-primary" id="sound_submit">Apply Sound Changes</button>
             </form>
           </div>
       </div>

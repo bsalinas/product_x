@@ -19,6 +19,7 @@ const DELTA_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
 
 const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
+const UI_SOUND_CHAR = "00000003-1212-efde-1523-780d000000f0"
 
 
 const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
@@ -202,6 +203,24 @@ class ProductX {
     .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
     .then(characteristic => characteristic.writeValue(data));
   }
+  writeSound(values)
+  {
+    // let values = [{frequency:3000, duration:100}, {frequency:2000, duration:200}];
+    let buffer = new ArrayBuffer(4*values.length);
+    let data = new Uint16Array(buffer);
+    let idx=0;
+    for(var values_idx in values)
+    {
+        data[idx] = values[values_idx].frequency;
+        idx++;
+        data[idx] = values[values_idx].duration;
+        idx++;
+    }
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service => service.getCharacteristic(UI_SOUND_CHAR))
+    .then(characteristic =>characteristic.writeValue(buffer))
+
+  }
   
   readAlgorithmConfig() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
@@ -227,6 +246,7 @@ class ProductX {
         return view[0];
     })
   }
+
 
   writeAlgorithmConfig(value) {
     let data = new Uint32Array(1);

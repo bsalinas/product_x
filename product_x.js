@@ -206,15 +206,27 @@ class ProductX {
   writeSound(values)
   {
     // let values = [{frequency:3000, duration:100}, {frequency:2000, duration:200}];
-    let buffer = new ArrayBuffer(4*values.length);
-    let data = new Uint16Array(buffer);
+    let buffer = new ArrayBuffer(3*values.length);
+    let data = new Uint8Array(buffer);
     let idx=0;
     for(var values_idx in values)
     {
-        data[idx] = values[values_idx].frequency;
+        let raw = (values[values_idx].frequency & 0x1FFF) | ((values[values_idx].duration & 0xFFF) << 13);
+        console.log("raw is "+raw)
+        data[idx] = raw&0x0000FF;
+        console.log(data[idx]);
         idx++;
-        data[idx] = values[values_idx].duration;
+        data[idx] = (raw&0x00FF00)>>8;
+        console.log(data[idx]);
         idx++;
+        data[idx] = (raw&0xFF0000)>>16;
+        console.log(data[idx]);
+        idx++;
+        // data[idx] = values[values_idx].frequency;
+        // idx++;
+        // data[idx] = values[values_idx].duration;
+        // idx++;
+
     }
     return this.device.gatt.getPrimaryService(UI_SERVICE)
     .then(service => service.getCharacteristic(UI_SOUND_CHAR))

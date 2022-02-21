@@ -39,8 +39,18 @@
     }
   </style>
   <script>
+    function hex_color_to_rgb(hex_color)
+    {
+      const r = parseInt(hex_color.substr(1,2), 16)
+      const g = parseInt(hex_color.substr(3,2), 16)
+      const b = parseInt(hex_color.substr(5,2), 16)
+      return {"red":r, "green":g, "blue":b};
+    }
     const tones = {"B0":31,"C1":33,"CS1":35,"D1":37,"DS1":39,"E1":41,"F1":44,"FS1":46,"G1":49,"GS1":52,"A1":55,"AS1":58,"B1":62,"C2":65,"CS2":69,"D2":73,"DS2":78,"E2":82,"F2":87,"FS2":93,"G2":98,"GS2":104,"A2":110,"AS2":117,"B2":123,"C3":131,"CS3":139,"D3":147,"DS3":156,"E3":165,"F3":175,"FS3":185,"G3":196,"GS3":208,"A3":220,"AS3":233,"B3":247,"C4":262,"CS4":277,"D4":294,"DS4":311,"E4":330,"F4":349,"FS4":370,"G4":392,"GS4":415,"A4":440,"AS4":466,"B4":494,"C5":523,"CS5":554,"D5":587,"DS5":622,"E5":659,"F5":698,"FS5":740,"G5":784,"GS5":831,"A5":880,"AS5":932,"B5":988,"C6":1047,"CS6":1109,"D6":1175,"DS6":1245,"E6":1319,"F6":1397,"FS6":1480,"G6":1568,"GS6":1661,"A6":1760,"AS6":1865,"B6":1976,"C7":2093,"CS7":2217,"D7":2349,"DS7":2489,"E7":2637,"F7":2794,"FS7":2960,"G7":3136,"GS7":3322,"A7":3520,"AS7":3729,"B7":3951,"C8":4186,"CS8":4435,"D8":4699,"DS8":4978};
     $(document).ready(function(e){
+
+        // $(".color_picker").append($("#color_picker_template").html())
+        // $("#color_picker_template").hide();
         let current_timeout = false;
         let voltage_timeout = false;
         function stop_current()
@@ -247,6 +257,44 @@
           console.log(sound);
           ss.writeSound(sound).then(_=>{alert("Successfully wrote Sound")}).catch(error=>{alert(error)})
         });
+        $(".color_picker_hex").change(function(event){
+          let val = $(this).val();
+          if(val.length == 6 && val[0] != "#" || val.length == 7 && val[0] == "#")
+          {
+            let new_value = val;
+            if(val[0] != "#")
+            {
+              new_value = "#" + val;
+            }
+            $("#"+$(this).attr("data-for")).val(new_value)
+          }
+        });
+        $('input[type="color"]').change(function(event){
+          $('.color_picker_hex[data-for="'+$(this).attr("id")+'"]').val($(this).val())
+        });
+        $("#color_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let values = [hex_color_to_rgb($('#color_0').val()),
+            hex_color_to_rgb($('#color_1').val()), 
+            hex_color_to_rgb($('#color_2').val()),
+            hex_color_to_rgb($('#color_3').val())
+          ];
+          ss.writeLEDColors(values).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
+        })
+        
+        $("#color_revert_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let values = [hex_color_to_rgb("#000000"),
+            hex_color_to_rgb("#000000"), 
+            hex_color_to_rgb("#000000"),
+            hex_color_to_rgb("#000000")
+          ];
+          ss.writeLEDColors(values).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
+        })
         $("#disconnect").click(function(e){
             if(connected)
             {
@@ -545,6 +593,37 @@
           </div>
           <div>
             <div class="row">
+              <h4>Color Testing</h4>
+            </div>
+              <div class="row">
+              <form id="color">
+                <div class="form-group" class="color_picker">
+                <label for="color_0">LED 1</label>
+                <input id="color_0" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_0" placeholder="FF0000">
+              </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 2</label>
+                <input id="color_1" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_1" placeholder="FF0000">
+                </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 3</label>
+                <input id="color_2" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_2" placeholder="FF0000">
+                </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 4</label>
+                <input id="color_3" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_3" placeholder="FF0000">
+                </div>
+                <button href="#" class="btn btn-primary" id="color_submit">Apply Color Changes</button>
+                <button href="#" class="btn btn-primary" id="color_revert_submit">Reset Color Changes</button>
+              </form>
+            </div>
+          </div>
+          <div>
+            <div class="row">
               <h4>Sounds</h4>
             </div>
             <form id="sound">
@@ -672,6 +751,13 @@ A6,100
           </div>
       </div>
   </div>
-
+<!-- <div id="color_picker_template">
+  <select class="color_shortcut">
+    <option value="#ff0000">Red</option>
+    <option value="#00FF00">Green</option>
+    <option value="#0000ff">Blue</option>
+    <option value="#FF00FF">Purple</option>
+  </select>
+</div> -->
 </body>
 </html>

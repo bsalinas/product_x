@@ -19,6 +19,7 @@ const DELTA_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
 
 const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
+const UI_COLOR_CHAR = "00000002-1212-efde-1523-780d000000f0"
 const UI_SOUND_CHAR = "00000003-1212-efde-1523-780d000000f0"
 
 
@@ -232,6 +233,26 @@ class ProductX {
     .then(service => service.getCharacteristic(UI_SOUND_CHAR))
     .then(characteristic =>characteristic.writeValue(buffer))
 
+  }
+  writeLEDColors(values)
+  {
+    let buffer = new ArrayBuffer(12)
+    let data = new Uint8Array(buffer)
+    let idx = 0;
+    for(var color_idx in values)
+    {
+        let color = values[color_idx]
+        console.log(color);
+        data[idx] = color["red"];
+        idx++;
+        data[idx] = color["green"];
+        idx++;
+        data[idx] = color["blue"];
+        idx++;
+    }
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service=> service.getCharacteristic(UI_COLOR_CHAR))
+    .then(characteristic =>characteristic.writeValue(buffer))
   }
   
   readAlgorithmConfig() {

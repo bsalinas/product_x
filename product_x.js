@@ -8,6 +8,13 @@ const VOLTAGE_REALERT_CHAR = "00000006-1212-efde-1523-780f0000000d"
 const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
 const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
 
+const VOLTAGE_MODE_RANGE = "00000010-1212-efde-1523-780f0000000d"
+const CURRENT_LOW_THRESHOLDS = "00000011-1212-efde-1523-780f0000000d"
+const CURRENT_HIGH_THRESHOLDS = "00000012-1212-efde-1523-780f0000000d"
+const SENSITIVITY_LEVEL = "00000013-1212-efde-1523-780f0000000d"
+const VOLTAGE_LOW_THRESHOLDS = "00000014-1212-efde-1523-780f0000000d"
+const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
+
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
 const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
 const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
@@ -254,7 +261,30 @@ class ProductX {
     .then(service=> service.getCharacteristic(UI_COLOR_CHAR))
     .then(characteristic =>characteristic.writeValue(buffer))
   }
-  
+  // readAlgorithmConfigNew() {
+  //   return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+  //   .then(service=> service.getCharacteristics())
+  //   .then(all_characteristics => {
+  //       for(let idx in all_characteristics)
+  //       {
+  //           let ch = all_characteristics[idx];
+  //           if(ch.uuid == ALGORITHM_CONFIG)
+  //           {
+  //               return ch.readValue();
+  //           }
+  //       }
+  //       return {"buffer":[0]}
+  //   })
+  //   // .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+  //   // .then(characteristic => characteristic.readValue())
+  //   // .error(error => {
+  //   //     return 0;
+  //   // })
+  //   .then(value => {
+  //       let view = new Uint8Array(value.buffer);
+  //       return view[0];
+  //   })
+  // }
   readAlgorithmConfig() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service=> service.getCharacteristics())
@@ -466,6 +496,149 @@ class ProductX {
     .then(service => service.getCharacteristic(DELTA_FILTER_THRESHOLD))
     .then(characteristic => characteristic.writeValue(data));
   }
+  readCurrentThresholds(is_high)
+  {
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == uuid)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("Data length is "+view.length);
+        return {"yellow":[view[0], view[1], view[2], view[3]], "red":[view[4], view[5], view[6], view[7]]}
+    })
+  }
+  writeCurrentThresholds(is_high, values)
+  {
+    let buffer = new ArrayBuffer(32)
+    let data = new Uint32Array(buffer)
+    let data_idx = 0;
+    for(var value_idx in values["yellow"])
+    {
+        let value = values["yellow"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    data_idx = 4;
+    for(var value_idx in values["red"])
+    {
+        let value = values["red"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    console.log(buffer);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(uuid))
+        .then(characteristic => characteristic.writeValue(buffer))
+
+  }
+  readVoltageThresholds(is_high)
+  {
+    let uuid = VOLTAGE_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = VOLTAGE_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == uuid)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint16Array(value.buffer);
+        console.log("Data length is "+view.length);
+        return {"yellow":[view[0], view[1], view[2], view[3]], "red":[view[4], view[5], view[6], view[7]]}
+    })
+  }
+  writeVoltageThresholds(is_high, values)
+  {
+    let buffer = new ArrayBuffer(16)
+    let data = new Uint16Array(buffer)
+    let data_idx = 0;
+    for(var value_idx in values["yellow"])
+    {
+        let value = values["yellow"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    data_idx = 4;
+    for(var value_idx in values["red"])
+    {
+        let value = values["red"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    let uuid = VOLTAGE_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = VOLTAGE_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(uuid))
+        .then(characteristic => characteristic.writeValue(buffer))
+
+  }
+  readVoltageRange(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeVoltageRange(value){
+    let data = new Uint8Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readSensitivityLevel(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"voltage":view[0], "current":view[1]}
+    })
+  }
+  writeSensitivityLevel(sensitivity){
+    let data = new Uint8Array(2);
+    data[0] = sensitivity["voltage"];
+    data[1] = sensitivity["current"];
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  
   disconnect() {
     if (!this.device) {
       return Promise.reject('Device is not connected.');

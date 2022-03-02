@@ -118,9 +118,7 @@
             stop_current();
             stop_voltage();
             let new_channel = parseInt($("#crew_channel").val());
-            let new_enabled = parseInt($("#crew_mode_enable").val());
             ss.writeCrewChannel(new_channel)
-            .then(_ => ss.writeCrewModeForcedEnabled(new_enabled))
             .then(_ =>{
                 alert("Successfully Wrote Crew Mode Settings");
             })
@@ -318,6 +316,10 @@
               .then(_ => { 
                 console.log("connected");
               })
+              // .then(_ => ss.readCurrentThresholds(false))
+              // .then((thresholds)=>{
+              //   console.log(thresholds)
+              // })
               .then(_ => ss.readVoltageYellow())
               .then((yellow) => {
                 voltage_yellow = yellow;
@@ -360,10 +362,6 @@
               .then(channel => {
                 $('#crew_channel').val(channel);
               })
-              .then(_=> ss.readCrewModeForcedEnabled())
-              .then(forced =>{
-                $('#crew_mode_enable').val(forced);
-              })
               .then(_=> ss.readFirmwareVersion())
               .then((fw_version) => {
                 $('#fw_version').text("Firmware: v"+fw_version)
@@ -392,7 +390,7 @@
                 $('.working').hide();
                 // console.log(red,yellow);
               })
-              .catch(error => { console.log(error) });
+              .catch(error => { console.log(error); alert(error) });
         });
         
     })
@@ -461,8 +459,7 @@
               <div class="form-group">
                   <label for="algorithm_mode">Algorithm Mode</label>
                   <select id="algorithm_mode">
-                    <option value="0">Voltage Priority (Voltage + Current Enabled)</option>
-                    <!-- <option value="1">Current Priority (Voltage + Current Enabled)</option> -->
+                    <option value="0">Voltage + Current Enabled</option>
                     <option value="2">Only Voltage Enabled</option>
                     <option value="3">Only Current Enabled</option>
                   </select>
@@ -534,30 +531,15 @@
         <div class="row">
             <form id="crew_mode">
               <div class="form-group">
-                <!--    CREW_CHANNEL_YELLOW = 0x00, //default
-    CREW_CHANNEL_ORANGE = 0x01,
-    CREW_CHANNEL_BLUE = 0x02,
-    CREW_CHANNEL_PINK = 0x03,
-    CREW_CHANNEL_RED_GLOBAL = 0xFF
-
--->
                   <label for="crew_channel">Crew Channel</label>
                   <select id="crew_channel">
                     <option value="0">Yellow (Default) </option>
                     <option value="1">Orange</option>
                     <option value="2">Blue</option>
                     <option value="3">Pink</option>
-                    <option value="15">Red (GLOBAL)</option>
+                    <option value="15">DISABLED (Red)</option>
                   </select>
-                  <p>Selecting "Red (GLOBAL)" will cause you to get alerts from all crew channels</p>
                   <p>Units will default to "Yellow", so at first everyone will be on the Yellow channel.</p>
-              </div>
-              <div class="form-group">
-                  <label for="crew_mode_enable">Crew Mode Enabled</label>
-                  <select id="crew_mode_enable">
-                    <option value="0">Selectable (Long Press While Turning On)</option>
-                    <option value="1">Always Enabled</option>
-                  </select>
               </div>
               <button href="#" class="btn btn-primary" id="crew_mode_submit">Apply Crew Mode Changes</button>
           </form>

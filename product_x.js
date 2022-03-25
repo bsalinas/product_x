@@ -15,6 +15,9 @@ const SENSITIVITY_LEVEL = "00000013-1212-efde-1523-780f0000000d"
 const VOLTAGE_LOW_THRESHOLDS = "00000014-1212-efde-1523-780f0000000d"
 const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
 
+const SMART_ADAPTIVE_VOLTAGE = "00000016-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_CURRENT = "00000017-1212-efde-1523-780f0000000d"
+
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
 const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
 const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
@@ -637,6 +640,54 @@ class ProductX {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
     .then(characteristic => characteristic.writeValue(data));
+  }
+  writeSmartAdaptiveConfig(is_voltage, config)
+  {
+    let characteristic_uuid = is_voltage ? SMART_ADAPTIVE_VOLTAGE : SMART_ADAPTIVE_CURRENT;
+    let buffer = new ArrayBuffer(28);
+    let view = new DataView(buffer);
+    view.setUint32(0,1000.0*config["slow_alpha"],true)
+    view.setUint32(4,1000.0*config["fast_alpha"],true)
+    view.setUint32(8,config["entering_threshold"],true)
+    view.setUint32(12,config["exiting_threshold"],true)
+    view.setUint32(16,config["entering_time_delay"],true)
+    view.setUint32(20,config["exiting_time_delay"],true)
+    view.setUint32(24,config["enabled"] ? 1 : 0,true)
+    let view8 = new Uint8Array(buffer);
+    for(let i=0; i<view8.length; i++)
+    {
+        console.log("d["+i+"]="+view8[i].toString(16));
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(characteristic_uuid))
+    .then(characteristic => characteristic.writeValue(view8));
+  }
+  readSmartAdaptiveConfig(is_voltage)
+  {
+    let characteristic_uuid = is_voltage ? SMART_ADAPTIVE_VOLTAGE : SMART_ADAPTIVE_CURRENT;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(characteristic_uuid))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view32 = new Uint32Array(value.buffer);
+        let viewFloat = new Float32Array(value.buffer);
+        let to_ret = {
+            "slow_alpha":view32[0]/1000.0,
+            "fast_alpha":view32[1]/1000.0,
+            "entering_threshold":view32[2],
+            "exiting_threshold":view32[3],
+            "entering_time_delay":view32[4],
+            "exiting_time_delay":view32[5],
+            "enabled":(view32[6] & 0b1) ? true : false
+        }
+        let view8 = new Uint8Array(value.buffer)
+        for(let i=0; i<view8.length; i++)
+        {
+            console.log("d["+i+"]="+view8[i].toString(16));
+        }
+        console.log(to_ret);
+        return to_ret;
+    })
   }
   
   disconnect() {

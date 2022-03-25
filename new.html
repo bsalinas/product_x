@@ -47,6 +47,43 @@
       return {"red":r, "green":g, "blue":b};
     }
     const tones = {"B0":31,"C1":33,"CS1":35,"D1":37,"DS1":39,"E1":41,"F1":44,"FS1":46,"G1":49,"GS1":52,"A1":55,"AS1":58,"B1":62,"C2":65,"CS2":69,"D2":73,"DS2":78,"E2":82,"F2":87,"FS2":93,"G2":98,"GS2":104,"A2":110,"AS2":117,"B2":123,"C3":131,"CS3":139,"D3":147,"DS3":156,"E3":165,"F3":175,"FS3":185,"G3":196,"GS3":208,"A3":220,"AS3":233,"B3":247,"C4":262,"CS4":277,"D4":294,"DS4":311,"E4":330,"F4":349,"FS4":370,"G4":392,"GS4":415,"A4":440,"AS4":466,"B4":494,"C5":523,"CS5":554,"D5":587,"DS5":622,"E5":659,"F5":698,"FS5":740,"G5":784,"GS5":831,"A5":880,"AS5":932,"B5":988,"C6":1047,"CS6":1109,"D6":1175,"DS6":1245,"E6":1319,"F6":1397,"FS6":1480,"G6":1568,"GS6":1661,"A6":1760,"AS6":1865,"B6":1976,"C7":2093,"CS7":2217,"D7":2349,"DS7":2489,"E7":2637,"F7":2794,"FS7":2960,"G7":3136,"GS7":3322,"A7":3520,"AS7":3729,"B7":3951,"C8":4186,"CS8":4435,"D8":4699,"DS8":4978};
+
+    function apply_smart_adaptive_config(is_voltage, config)
+    {
+        let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+        for(var key in config)
+        {
+            let value = config[key];
+            if(key === "enabled")
+            {
+                if(value) value = "1";
+                else value = "0";
+                $parent.find('[data-param="'+key+'"]').val(value);
+            } else
+            {
+                $parent.find('[data-param="'+key+'"]').val(value);    
+            }
+        }
+    }
+    function fetch_smart_adaptive_config(is_voltage)
+    {
+        let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+        let enabled = $parent.find('[data-param="enabled"]').val() === "1";
+        let to_ret = {"enabled":enabled};
+        $.each($parent.find('input[data-param]'),function(idx,el){
+            let param_type = $(el).attr("data-type")
+            if( param_type == "float")
+            {
+                to_ret[$(el).attr("data-param")] = parseFloat($(el).val())    
+            } else
+            {
+                to_ret[$(el).attr("data-param")] = parseInt($(el).val())    
+            }
+            
+         })
+        console.log(to_ret);
+        return to_ret;
+    }
     $(document).ready(function(e){
 
         // $(".color_picker").append($("#color_picker_template").html())
@@ -319,6 +356,14 @@
           }
 
         })
+        $('.smart_adaptive .btn').click(function(e){
+            e.preventDefault();
+            let is_voltage = $(this).attr('data-adaptive-type') === "voltage"
+            let config = fetch_smart_adaptive_config(is_voltage);
+            ss.writeSmartAdaptiveConfig(is_voltage, config)
+            .then(_ => alert("Wrote Smart Adaptive"))
+            .catch(error => alert(error));
+        })
         $("#connect").click(function(e){
             ss.request()
               .then(_ => {
@@ -422,6 +467,14 @@
               .then(_=> ss.readDeltaFilterAlpha())
               .then((value) =>{
                 $('#delta_filter_alpha').val(value);
+              })
+              .then(_=> ss.readSmartAdaptiveConfig(true))
+              .then((config) =>{
+                apply_smart_adaptive_config(true, config);
+              })
+              .then(_=> ss.readSmartAdaptiveConfig(false))
+              .then((config) =>{
+                apply_smart_adaptive_config(false, config);
               })
               .then(_ => {
                 // console.log("done");
@@ -755,6 +808,77 @@
               </div>
               <button href="#" class="btn btn-primary" id="ux_values_submit">Apply UX Changes</button>
           </form>
+      </div>
+      <div class="row">
+        <h4>Smart Adaptive Mode</h4>
+      </div>
+      <div class="row">
+        <h5>Voltage</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_voltage" class="smart_adaptive" data-adaptive-type="voltage">
+            <div class="form-group">
+                <select data-param="enabled">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Slow Filter Alpha</label>
+                <input data-param="slow_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Fast Filter Alpha</label>
+                <input data-param="fast_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Entering Threshold (units)</label>
+                <input data-param="entering_threshold" data-type="int"/>
+                <label>Entering Additional Delay (milliseconds)</label>
+                <input data-param="entering_time_delay" data-type="int"/>
+            </div>
+            <div class="form-group">
+                <label>Exiting Threshold (units)</label>
+                <input data-param="exiting_threshold" data-type="int"/>
+                <label>Exiting Additional Delay (milliseconds)</label>
+                <input data-param="exiting_time_delay" data-type="int"/>
+            </div>
+            <a href="#" class="btn btn-primary" data-adaptive-type="voltage">Send Voltage Smart Adaptive</a>
+        </form>
+      </div>
+      <div class="row">
+        <h5>Current</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_current" class="smart_adaptive" data-adaptive-type="current">
+            <div class="form-group">
+                <select data-param="enabled">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Slow Filter Alpha</label>
+                <input data-param="slow_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Fast Filter Alpha</label>
+                <input data-param="fast_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Entering Threshold (units)</label>
+                <input data-param="entering_threshold" data-type="int"/>
+                <label>Entering Additional Delay (milliseconds)</label>
+                <input data-param="entering_time_delay" data-type="int"/>
+            </div>
+            <div class="form-group">
+                <label>Exiting Threshold (units)</label>
+                <input data-param="exiting_threshold" data-type="int"/>
+                <label>Exiting Additional Delay (milliseconds)</label>
+                <input data-param="exiting_time_delay" data-type="int"/>
+            </div>
+            <a href="#" class="btn btn-primary" data-adaptive-type="current">Send Current Smart Adaptive</a>
+        </form>
       </div>
       <div class="row">
             <h4>Crew Mode Settings</h4>

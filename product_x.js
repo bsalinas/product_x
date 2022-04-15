@@ -214,34 +214,52 @@ class ProductX {
     .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
     .then(characteristic => characteristic.writeValue(data));
   }
-  writeSound(values)
+  async writeSound(values)
   {
     // let values = [{frequency:3000, duration:100}, {frequency:2000, duration:200}];
-    let buffer = new ArrayBuffer(3*values.length);
-    let data = new Uint8Array(buffer);
-    let idx=0;
-    for(var values_idx in values)
+    let count_of_writes = parseInt(values.length/25);
+    if(values.length%25 != 0) count_of_writes++;
+    let arr_of_buffers = []
+    let remaining_length = values.length;
+    let sound_idx = 0;
+    while(remaining_length > 0)
     {
-        let raw = (values[values_idx].frequency & 0x1FFF) | ((values[values_idx].duration & 0xFFF) << 13);
-        console.log("raw is "+raw)
-        data[idx] = raw&0x0000FF;
-        console.log(data[idx]);
-        idx++;
-        data[idx] = (raw&0x00FF00)>>8;
-        console.log(data[idx]);
-        idx++;
-        data[idx] = (raw&0xFF0000)>>16;
-        console.log(data[idx]);
-        idx++;
-        // data[idx] = values[values_idx].frequency;
-        // idx++;
-        // data[idx] = values[values_idx].duration;
-        // idx++;
-
+        let this_length = 25;
+        if(remaining_length < 25) this_length = remaining_length;
+        let buffer = new ArrayBuffer(3*this_length+1);
+        let data = new Uint8Array(buffer);
+        let buffer_idx=0;
+        data[buffer_idx] = sound_idx;
+        buffer_idx++;
+        for(let i=0; i<this_length; i++)
+        {
+            let raw = (values[i+sound_idx].frequency & 0x1FFF) | ((values[i+sound_idx].duration & 0xFFF) << 13);
+            console.log("raw is "+raw)
+            data[buffer_idx] = raw&0x0000FF;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            data[buffer_idx] = (raw&0x00FF00)>>8;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            data[buffer_idx] = (raw&0xFF0000)>>16;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            // data[idx] = values[values_idx].frequency;
+            // idx++;
+            // data[idx] = values[values_idx].duration;
+            // idx++;
+        }
+        sound_idx = sound_idx + this_length;
+        remaining_length = remaining_length - this_length;
+        arr_of_buffers.push(buffer);
     }
-    return this.device.gatt.getPrimaryService(UI_SERVICE)
-    .then(service => service.getCharacteristic(UI_SOUND_CHAR))
-    .then(characteristic =>characteristic.writeValue(buffer))
+    for(let idx in arr_of_buffers)
+    {
+        await this.device.gatt.getPrimaryService(UI_SERVICE)
+        .then(service => service.getCharacteristic(UI_SOUND_CHAR))
+        .then(characteristic =>characteristic.writeValue(arr_of_buffers[idx]))
+    }
+    return true;
 
   }
   writeLEDColors(values)

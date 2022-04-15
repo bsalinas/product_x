@@ -264,7 +264,7 @@
             if(values.length != 2)
             {
               alert("Incorrect formatting on line \""+line+"\"");
-            } else if(sound_idx < 25){
+            } else if(sound_idx < 250){
               let tone = values[0]
               if(tones[values[0]])
               {
@@ -274,7 +274,7 @@
               sound_idx++;
             } else
             {
-              alert("Too many tones. Max is 25");
+              alert("Too many tones. Max is 250");
             }
           }
           console.log(sound);
@@ -967,8 +967,8 @@
               <h4>Sounds</h4>
             </div>
             <form id="sound">
-              <p>Each row should be "frequency,duration" with frequency in Hz and duration in milliseconds(min of 50ms).</p>
-              <p> For a pause with no sound, use 0 Hz. There is a maximum of 25 tones at this time. The sound will be played when you press the button on the Sixth Sense</p>
+              <p>Each row should be "frequency,duration" with frequency in Hz and duration in milliseconds.</p>
+              <p> For a pause with no sound, use 0 Hz. There is a maximum of 250 tones at this time. The sound will be played when you press the button on the Sixth Sense</p>
               <div class="form-group">
               <textarea id="sound_content" placeholder="3000,100&#10;4000,200"></textarea>
             </div>

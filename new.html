@@ -356,6 +356,13 @@
           }
 
         })
+        $('#btn_serial_number').click(function(e){
+            e.preventDefault();
+            let serial_number = parseInt($("#serial_number").val());
+            ss.writeSerialNumber(serial_number)
+            .then(_=> alert("Wrote Serial Number"))
+            .catch(error=>alert(error));
+        })
         $('.smart_adaptive .btn').click(function(e){
             e.preventDefault();
             let is_voltage = $(this).attr('data-adaptive-type') === "voltage"
@@ -399,6 +406,17 @@
                 // console.log("sensitivity is "+sensitivity);
                 $("#sensitivity_voltage").val(sensitivity["voltage"]);
                 $("#sensitivity_current").val(sensitivity["current"]);
+              })
+              .then(_=>ss.readSerialNumber())
+              .then((serial_number) =>{
+                if(serial_number == 0xFFFFFFFF)
+                {
+                    $('#serial_number').val(0);    
+                } else
+                {
+                    $('#serial_number').val(serial_number);
+                }
+                
               })
               .then(_=>ss.readVoltageRange())
               .then((range) =>{
@@ -516,6 +534,13 @@
         </div>
         <div class="row">
             <h5 id="fw_version"></h5>
+        </div>
+        <div class="row">
+            <form>
+                <label>Serial Number</label>
+                <input type="text" id="serial_number"/>
+                <a href="#" id="btn_serial_number" class="btn btn-primary">Write Serial Number</a>
+            </form>
         </div>
         <div class="row">
           <h4>Live Readings</h4>
@@ -832,13 +857,13 @@
                 <input data-param="fast_alpha" data-type="float"/>
             </div>
             <div class="form-group">
-                <label>Entering Threshold (units)</label>
+                <label>Entering Threshold (percent)</label>
                 <input data-param="entering_threshold" data-type="int"/>
                 <label>Entering Additional Delay (milliseconds)</label>
                 <input data-param="entering_time_delay" data-type="int"/>
             </div>
             <div class="form-group">
-                <label>Exiting Threshold (units)</label>
+                <label>Exiting Threshold (percent)</label>
                 <input data-param="exiting_threshold" data-type="int"/>
                 <label>Exiting Additional Delay (milliseconds)</label>
                 <input data-param="exiting_time_delay" data-type="int"/>

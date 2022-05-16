@@ -18,6 +18,8 @@ const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
 const SMART_ADAPTIVE_VOLTAGE = "00000016-1212-efde-1523-780f0000000d"
 const SMART_ADAPTIVE_CURRENT = "00000017-1212-efde-1523-780f0000000d"
 
+const SERIAL_NUMBER = "0000001a-1212-efde-1523-780f0000000d"
+
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
 const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
 const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
@@ -650,6 +652,35 @@ class ProductX {
         let view = new Uint8Array(value.buffer);
         return {"voltage":view[0], "current":view[1]}
     })
+  }
+  readSerialNumber(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == SERIAL_NUMBER)
+            {
+                return ch.readValue()
+                .then(value => {
+                    let view = new Uint32Array(value.buffer);
+                    return view[1];
+                });
+            }
+        }
+        return 0
+    })
+  }
+  writeSerialNumber(number)
+  {
+    let data = new Uint32Array(2);
+    // data[0] = 0xAABBCCDD;
+    data[0] = 0xDDCCBBAA;
+    data[1] = number;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SERIAL_NUMBER))
+    .then(characteristic => characteristic.writeValue(data));
   }
   writeSensitivityLevel(sensitivity){
     let data = new Uint8Array(2);

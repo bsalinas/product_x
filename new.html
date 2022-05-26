@@ -356,6 +356,41 @@
           }
 
         })
+        $('#logging').click(function(e){
+            e.preventDefault();
+            if($("#logging").attr("data-logging") == "yes")
+            {
+                ss.stopLogging()
+                .then(_ => alert("Logging Stopped"))
+                .then(_ =>{
+                    $('#logging').text("Start Logging");
+                    $("#logging").attr("data-logging","no")
+                })
+                .then(_ => {
+                    console.log(ss.loggedData());
+                    let blob = new Blob([ss.loggedData()], {type: "application/octet-stream"})
+                    let url = window.URL.createObjectURL(blob);
+                    $("#logging_download").attr("href",url);
+                    $("#logging_download").attr("download","ss_log.bin")
+                    $("#logging_download").show();
+
+                })
+                .catch(error => alert(error))
+            } else
+            {
+                // let voltage_logging = $('#logging_voltage').is(":checked")
+                // let current_logging = $('#logging_current').is(":checked")
+                
+                ss.startLogging({"voltage":true, "current":false})
+                .then(_ => alert("Logging Started"))
+                .then(_ =>{
+                    $('#logging').text("Stop Logging");
+                    $("#logging").attr("data-logging","yes")
+                    $("#logging_download").hide();
+                })
+                .catch(error => alert(error))
+            }
+        });
         $('#btn_serial_number').click(function(e){
             e.preventDefault();
             let serial_number = parseInt($("#serial_number").val());
@@ -567,7 +602,30 @@
             </div>
           </div>
         </div>
-         <div class="row">
+        <div class="row">
+          <h4>Logging</h4>
+        </div>
+        <!-- <div class="row">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="logging_current" name="current"
+                     checked>
+              <label class="form-check-label" for="logging_current">Current</label>
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="logging_voltage" name="voltage"
+                     checked>
+              <label class="form-check-label" for="logging_voltage">Voltage</label>
+            </div>
+        </div> -->
+        <div class="row">
+          <button href="#" class="btn btn-primary" id="logging">Start Logging</button>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary" style="display:none;" id="logging_download">Download Log</a>
+        </div>
+    <div class="row">
           <h4>Algorithm Configuration</h4>
       </div>
       <div class="row">

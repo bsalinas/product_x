@@ -18,6 +18,7 @@ const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
 const SMART_ADAPTIVE_VOLTAGE = "00000016-1212-efde-1523-780f0000000d"
 const SMART_ADAPTIVE_CURRENT = "00000017-1212-efde-1523-780f0000000d"
 
+const LOGGING_CONFIG = "00000018-1212-efde-1523-780f0000000d"
 const SERIAL_NUMBER = "0000001a-1212-efde-1523-780f0000000d"
 
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
@@ -33,6 +34,11 @@ const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
 const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
 const UI_COLOR_CHAR = "00000002-1212-efde-1523-780d000000f0"
 const UI_SOUND_CHAR = "00000003-1212-efde-1523-780d000000f0"
+
+const NRF_NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+
+const NRF_NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+const NRF_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
 
 const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
@@ -52,7 +58,7 @@ class ProductX {
       },{ 
         "name": "6S"
       }],
-      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE]
+      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE, NRF_NUS_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)
     .then(device => {
@@ -738,7 +744,70 @@ class ProductX {
         return to_ret;
     })
   }
-  
+//   function copy(src)  {
+//     var dst = new ArrayBuffer(src.byteLength);
+//     new Uint8Array(dst).set(new Uint8Array(src));
+//     return dst;
+// }
+logging_notification_handler(event)
+  {
+    let value = event.target.value;
+    console.log("Adding "+value.byteLength);
+    if(!this.logging_data)
+    {
+        let new_data = new ArrayBuffer(12)
+        let now = Date.now()
+        //javacript doesn't do bit shifting for 64 bit numbers.
+        let lower = (now%Math.pow(2,32))
+        let upper = (now - lower)/Math.pow(2,32)
+        
+        new Uint32Array(new_data).set(new Uint32Array([0x01, lower, upper]),0)
+        this.logging_data = new_data;
+    }
+    if(this.logging_data)
+    {
+        let new_data = new ArrayBuffer(this.logging_data.byteLength + event.target.value.byteLength)
+        new Uint8Array(new_data).set(new Uint8Array(this.logging_data),0)
+        new Uint8Array(new_data).set(new Uint8Array(event.target.value.buffer),this.logging_data.byteLength);
+        this.logging_data = new_data
+        console.log(this.logging_data);
+    }
+  }
+  startLogging(logging_type)
+  {
+    let val = 0;
+    if(logging_type["voltage"]) val = val | 0b001;
+    if(logging_type["current"]) val = val | 0b010;
+    let uint8 = new Uint8Array([val])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(LOGGING_CONFIG))
+        .then(characteristic => characteristic.writeValue(uint8))
+        .then(val => this.device.gatt.getPrimaryService(NRF_NUS_SERVICE))
+        .then(service => service.getCharacteristic(NRF_NUS_TX))
+        .then(characteristic => {
+            let rxCharacteristic = characteristic;
+            return rxCharacteristic.startNotifications()
+            .then(_ =>{
+                rxCharacteristic.addEventListener("characteristicvaluechanged",this.logging_notification_handler)
+            })
+        })   
+  }
+  stopLogging()
+  {
+    return this.device.gatt.getPrimaryService(NRF_NUS_SERVICE)
+    .then(service => service.getCharacteristic(NRF_NUS_TX))
+    .then(characteristic => {
+        characteristic.stopNotifications()
+        characteristic.removeEventListener("characteristicvaluechanged",this.logging_notification_handler)
+        this.logged_data = characteristic.logging_data;
+        characteristic.logging_data = false;
+    })
+
+  }
+  loggedData()
+  {
+    return this.logged_data;
+  }
   disconnect() {
     if (!this.device) {
       return Promise.reject('Device is not connected.');

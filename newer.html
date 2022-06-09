@@ -284,22 +284,29 @@ class ProductX {
     return true;
 
   }
-  writeLEDColors(values)
+  writeLEDColors(values, on_time, off_time)
   {
-    let buffer = new ArrayBuffer(12)
-    let data = new Uint8Array(buffer)
+    let buffer = new ArrayBuffer(16)
+    let view = new DataView(buffer);
     let idx = 0;
     for(var color_idx in values)
     {
         let color = values[color_idx]
         console.log(color);
-        data[idx] = color["red"];
+        view.setUint8(idx, color["red"]);
+        // data[idx] = color["red"];
         idx++;
-        data[idx] = color["green"];
+        // data[idx] = color["green"];
+        view.setUint8(idx, color["green"]);
         idx++;
-        data[idx] = color["blue"];
+        view.setUint8(idx, color["blue"]);
+        // data[idx] = color["blue"];
         idx++;
     }
+    view.setUint16(idx,on_time, true);
+    idx+=2;
+    view.setUint16(idx,off_time, true);
+    console.log(buffer);
     return this.device.gatt.getPrimaryService(UI_SERVICE)
     .then(service=> service.getCharacteristic(UI_COLOR_CHAR))
     .then(characteristic =>characteristic.writeValue(buffer))
@@ -1168,7 +1175,9 @@ logging_notification_handler(event)
             hex_color_to_rgb($('#color_2').val()),
             hex_color_to_rgb($('#color_3').val())
           ];
-          ss.writeLEDColors(values).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
+          let on_time = parseInt($("#led_on_time").val())
+          let off_time = parseInt($("#led_off_time").val())
+          ss.writeLEDColors(values, on_time, off_time).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
         })
         
         $("#color_revert_submit").click(function(event){
@@ -1235,26 +1244,37 @@ logging_notification_handler(event)
                     let blob = new Blob([ss.loggedData()], {type: "application/octet-stream"})
                     let url = window.URL.createObjectURL(blob);
                     $("#logging_download").attr("href",url);
-                    $("#logging_download").attr("download","ss_log.bin")
-                    $("#logging_download").show();
+                    $("#logging_download_parent").show();
 
                 })
                 .catch(error => alert(error))
             } else
             {
-                // let voltage_logging = $('#logging_voltage').is(":checked")
-                // let current_logging = $('#logging_current').is(":checked")
+                let voltage_logging = $('#logging_voltage').is(":checked")
+                let current_logging = $('#logging_current').is(":checked")
                 
-                ss.startLogging({"voltage":false, "current":true})
+                ss.startLogging({"voltage":voltage_logging, "current":current_logging})
                 .then(_ => alert("Logging Started"))
                 .then(_ =>{
                     $('#logging').text("Stop Logging");
                     $("#logging").attr("data-logging","yes")
-                    $("#logging_download").hide();
+                    $("#logging_download_parent").hide();
                 })
                 .catch(error => alert(error))
             }
         });
+        $('#logging_download').click(function(e){
+            let filename = $('#logging_download_filename').val();
+            console.log("filename is ")
+            console.log(filename)
+            filename = filename.trim();
+            if(filename == "")
+            {
+                filename="ss_log"
+            }
+            filename+=".bin";
+            $("#logging_download").attr("download",filename)
+        })
         $('#btn_serial_number').click(function(e){
             e.preventDefault();
             let serial_number = parseInt($("#serial_number").val());
@@ -1474,7 +1494,7 @@ logging_notification_handler(event)
         <div class="row">
           <h4>Logging</h4>
         </div>
-        <!-- <div class="row">
+        <div class="row">
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="logging_current" name="current"
                      checked>
@@ -1487,12 +1507,13 @@ logging_notification_handler(event)
                      checked>
               <label class="form-check-label" for="logging_voltage">Voltage</label>
             </div>
-        </div> -->
+        </div>
         <div class="row">
           <button href="#" class="btn btn-primary" id="logging">Start Logging</button>
         </div>
-        <div class="row">
-          <a href="#" class="btn btn-primary" style="display:none;" id="logging_download">Download Log</a>
+        <div class="row" id="logging_download_parent" style="display:none;">
+            <label>Filename</label> <input id="logging_download_filename" placeholder="ss_log">
+          <a href="#" class="btn btn-primary" id="logging_download">Download Log</a>
         </div>
     <div class="row">
           <h4>Algorithm Configuration</h4>
@@ -1908,6 +1929,13 @@ logging_notification_handler(event)
                 <label for="color_0">LED 4</label>
                 <input id="color_3" type="color" value="#ff0000">
                 <input type="text" class="color_picker_hex" data-for="color_3" placeholder="FF0000">
+                </div>
+                <div class="form-group">
+                    <label>On Time(ms)</label>
+                    <input id="led_on_time" placeholder="30" value="30"/>
+                    <label>Off Time(ms)</label>
+                    <input id="led_off_time" placeholder="5000" value="5000"/>
+                    <p>Set Off Time to 0 for the light to remain on constantly</p>
                 </div>
                 <button href="#" class="btn btn-primary" id="color_submit">Apply Color Changes</button>
                 <button href="#" class="btn btn-primary" id="color_revert_submit">Reset Color Changes</button>

@@ -57,6 +57,11 @@ const NRF_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
 const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
 const FW_VERSION = "00002a26-0000-1000-8000-00805f9b34fb"
+let trailing_current = [];
+let trailing_voltage = [];
+let trailing_voltage_idx = 0;
+let trailing_current_idx = 0;
+let TRAILING_COUNT = 40;
 class ProductX {
 
   constructor(disconnect_cb) {
@@ -198,13 +203,68 @@ class ProductX {
     .then(characteristic => characteristic.writeValue(data));
   }
 
+
+  calcMedian(data){
+    let sorted = [...data].sort();
+    if(data.length%2 == 1)
+    {
+        return sorted[(data.length-1)/2];
+    } else
+    {
+        return (sorted[data.length/2] + sorted[data.length/2-1])/2.0;
+    }
+  }
+  calculateStats(data){
+    let sum = 0;
+    let count = 0;
+    for(var pt_idx in data)
+    {
+        console.log(pt_idx)
+        sum = sum + data[pt_idx];
+        count = count + 1;
+    }
+    console.log(sum);
+    let avg = 0;
+    let median = this.calcMedian(data);
+    avg = sum/count;
+    let var_mean = 0;
+    let mad_data = [];
+    for(var pt_idx in data)
+    {
+        var_mean = var_mean + (data[pt_idx] - avg)*(data[pt_idx]-avg);
+        mad_data.push(Math.abs(data[pt_idx] - median))
+    }
+    var_mean = var_mean / count;
+    let mad = this.calcMedian(mad_data);
+    return {"stddev":Math.sqrt(var_mean),"mad":mad,"mean":avg, "median":median, "min":Math.min(...data), "max":Math.max(...data)}
+  }
+  resetStats(){
+    trailing_current = [];
+    trailing_voltage = [];
+    trailing_current_idx = 0;
+    trailing_voltage_idx = 0;
+  }
   readCurrentField() {
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(CURRENT_READING_CHAR))
     .then(characteristic => characteristic.readValue())
     .then(value => {
         let view = new Uint32Array(value.buffer);
-        return view[0];
+        let is_done = true;
+        if(trailing_current_idx < TRAILING_COUNT)
+        {
+            trailing_current[trailing_current_idx] = view[0];
+            trailing_current_idx++;
+            is_done = false;
+        }
+        // if(trailing_current_idx >= TRAILING_COUNT)
+        // {
+        //     trailing_current_idx = 0;
+        // }
+        let new_stats = this.calculateStats(trailing_current);
+        new_stats["reading"] = view[0];
+        new_stats["is_done"] = is_done;
+        return new_stats;
     })
   }
   readVoltageField() {
@@ -213,7 +273,22 @@ class ProductX {
     .then(characteristic => characteristic.readValue())
     .then(value => {
         let view = new Uint32Array(value.buffer);
-        return view[0];
+        let is_done = true;
+        if(trailing_voltage_idx < TRAILING_COUNT)
+        {
+            trailing_voltage[trailing_voltage_idx] = view[0];
+            trailing_voltage_idx++;
+            is_done = false;
+        }
+        // if(trailing_voltage_idx >= TRAILING_COUNT)
+        // {
+        //     trailing_voltage_idx = 0;
+        // }
+        let new_stats = this.calculateStats(trailing_voltage);
+        new_stats["reading"] = view[0];
+        new_stats["is_done"] = is_done;
+        return new_stats;
+        // return view[0];
     })
   }
 
@@ -872,6 +947,14 @@ logging_notification_handler(event)
         display:inline-block;
 
     }
+    .card-body h5
+    {
+        color: #888;
+    }
+    .card-body h5.done
+    {
+        color: black;
+    }
     .stat_parent .stat_value
     {
         font-size:2em;
@@ -1061,14 +1144,32 @@ logging_notification_handler(event)
                 current_timeout = setInterval(function(){
                     ss.readCurrentField()
                     .then(value =>{
-                        $("#field_current").text(value);
+                        $("#field_current").text(value["reading"]);
+                        $("#avg_current").text("mean:("+value["mean"].toFixed(1)+" , "+value["stddev"].toFixed(1)+")")
+                        $("#med_current").text("med:("+value["median"].toFixed(1)+" , "+value["mad"].toFixed(1)+")")
+                        $("#minmax_current").text("min:"+value["min"].toFixed(0)+" , max:"+value["max"].toFixed(0) +" delta: "+(value["max"]-value["min"]));
+                        if(value["is_done"])
+                        {
+                            $("#avg_current").addClass("done")
+                            $("#med_current").addClass("done")
+                            $("#minmax_current").addClass("done");
+                        } else
+                        {
+                            $("#avg_current").removeClass("done")
+                            $("#med_current").removeClass("done")
+                            $("#minmax_current").removeClass("done");
+                        }
                     });
-                }, 500);
+                }, 200);
             } else
             {
                 stop_current();
             }
         });
+        $('#reset_stats').click(function(evt){
+            evt.preventDefault();
+            ss.resetStats();
+        })
         $("#read_voltage").click(function(evt){
             evt.preventDefault();
             if(voltage_timeout === false)
@@ -1077,9 +1178,23 @@ logging_notification_handler(event)
                 voltage_timeout = setInterval(function(){
                     ss.readVoltageField()
                     .then(value =>{
-                        $("#field_voltage").text(value);
+                        $("#field_voltage").text(value["reading"]);
+                        $("#avg_voltage").text("mean:"+value["mean"].toFixed(1)+" , "+value["stddev"].toFixed(1)+")")
+                        $("#med_voltage").text("med:("+value["median"].toFixed(1)+" , "+value["mad"].toFixed(1)+")")
+                        $("#minmax_voltage").text("min:"+value["min"].toFixed(0)+" , max:"+value["max"].toFixed(0) +" delta: "+(value["max"]-value["min"]));
+                        if(value["is_done"])
+                        {
+                            $("#avg_voltage").addClass("done")
+                            $("#med_voltage").addClass("done")
+                            $("#minmax_voltage").addClass("done");
+                        } else
+                        {
+                            $("#avg_voltage").removeClass("done")
+                            $("#med_voltage").removeClass("done")
+                            $("#minmax_voltage").removeClass("done");
+                        }
                     });
-                }, 100);
+                }, 200);
             } else
             {
                 stop_voltage();
@@ -1470,11 +1585,15 @@ logging_notification_handler(event)
           <h4>Live Readings</h4>
         </div>
         <div class="row">
+            
           <div class="col-sm-6">
             <div class="card">
                 <div class="card-body">
                   <div class="card-subtitle">Voltage</div>
                   <h4 id="field_voltage" class="card-title">---</h4>
+                  <h5 id="avg_voltage"></h5>
+                  <h5 id="med_voltage"></h5>
+                  <h5 id="minmax_voltage"></h5>
                   <a href="#" id="read_voltage" class="btn btn-primary">Read Voltage</a>
                 </div>
                 
@@ -1485,10 +1604,14 @@ logging_notification_handler(event)
                 <div class="card-body">
                   <div class="card-subtitle">Current</div>
                   <h4 id="field_current" class="card-title">---</h4>
+                  <h5 id="avg_current"></h5>
+                  <h5 id="med_current"></h5>
+                  <h5 id="minmax_current"></h5>
                   <a href="#" id="read_current" class="btn btn-primary">Read Current</a>
                 </div>
                 
             </div>
+            <a href="#" id="reset_stats" class="btn btn-primary">Reset Stats</a>
           </div>
         </div>
         <div class="row">

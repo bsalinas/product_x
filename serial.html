@@ -20,11 +20,6 @@ const NRF_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
 const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
 const FW_VERSION = "00002a26-0000-1000-8000-00805f9b34fb"
-let trailing_current = [];
-let trailing_voltage = [];
-let trailing_voltage_idx = 0;
-let trailing_current_idx = 0;
-let TRAILING_COUNT = 40;
 class ProductX {
 
   constructor(disconnect_cb) {
@@ -40,7 +35,7 @@ class ProductX {
       },{ 
         "name": "6S"
       }],
-      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE, NRF_NUS_SERVICE]
+      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE]
     };
     return navigator.bluetooth.requestDevice(options)
     .then(device => {

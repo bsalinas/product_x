@@ -34,6 +34,8 @@ const LOGGING_CONFIG = "00000018-1212-efde-1523-780f0000000d"
 const FIND_ME = "00000019-1212-efde-1523-780f0000000d"
 const SERIAL_NUMBER = "0000001a-1212-efde-1523-780f0000000d"
 const UNLOCK = "0000001b-1212-efde-1523-780f0000000d"
+const FALL_CONFIG = "0000001c-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_ENABLED = "0000001d-1212-efde-1523-780f0000000d"
 
 const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
 const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
@@ -803,7 +805,8 @@ class ProductX {
     view.setUint32(12,config["exiting_threshold"],true)
     view.setUint32(16,config["entering_time_delay"],true)
     view.setUint32(20,config["exiting_time_delay"],true)
-    view.setUint32(24,config["enabled"] ? 1 : 0,true)
+    view.setUint32(24,0);
+    // view.setUint32(24,config["enabled"] ? 1 : 0,true)
     let view8 = new Uint8Array(buffer);
     for(let i=0; i<view8.length; i++)
     {
@@ -829,7 +832,7 @@ class ProductX {
             "exiting_threshold":view32[3],
             "entering_time_delay":view32[4],
             "exiting_time_delay":view32[5],
-            "enabled":(view32[6] & 0b1) ? true : false
+            // "enabled":(view32[6] & 0b1) ? true : false
         }
         let view8 = new Uint8Array(value.buffer)
         for(let i=0; i<view8.length; i++)
@@ -838,6 +841,72 @@ class ProductX {
         }
         console.log(to_ret);
         return to_ret;
+    })
+  }
+  readSmartAdaptiveEnabled()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view8 = new Uint8Array(value.buffer);
+        let to_ret = {
+            "current":view8[0] == 1 ? true : false,
+            "voltage":view8[0] == 1 ? true : false
+        }
+        console.log(to_ret);
+        return to_ret;
+    })
+  }
+  writeSmartAdaptiveEnabled(config)
+  {
+    let buffer = new ArrayBuffer(2);
+    let view = new DataView(buffer);
+    view.setUint8(0,config["current"] ? 1 : 0)
+    view.setUint8(1,config["voltage"] ? 1 : 0)
+    let view8 = new Uint8Array(buffer);
+    for(let i=0; i<view8.length; i++)
+    {
+        console.log("d["+i+"]="+view8[i].toString(16));
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.writeValue(view8));
+  }
+  writeFallConfig(threshold, duration)
+  {
+    let data = new Uint8Array(2);
+    data[0] = threshold;
+    data[1] = duration;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(FALL_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readFallConfig()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == FALL_CONFIG)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"thresold":0, "duration":0}
+    })
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"threshold":view[0], "duration":view[1]}
+    })
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(FALL_CONFIG))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"threshold":view[0], "duration":view[1]}
     })
   }
 //   function copy(src)  {
@@ -988,22 +1057,23 @@ logging_notification_handler(event)
         for(var key in config)
         {
             let value = config[key];
-            if(key === "enabled")
-            {
-                if(value) value = "1";
-                else value = "0";
-                $parent.find('[data-param="'+key+'"]').val(value);
-            } else
-            {
-                $parent.find('[data-param="'+key+'"]').val(value);    
-            }
+            $parent.find('[data-param="'+key+'"]').val(value);    
+            // if(key === "enabled")
+            // {
+            //     if(value) value = "1";
+            //     else value = "0";
+            //     $parent.find('[data-param="'+key+'"]').val(value);
+            // } else
+            // {
+            //     $parent.find('[data-param="'+key+'"]').val(value);    
+            // }
         }
     }
     function fetch_smart_adaptive_config(is_voltage)
     {
         let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
-        let enabled = $parent.find('[data-param="enabled"]').val() === "1";
-        let to_ret = {"enabled":enabled};
+        // let enabled = $parent.find('[data-param="enabled"]').val() === "1";
+        let to_ret = {};
         $.each($parent.find('input[data-param]'),function(idx,el){
             let param_type = $(el).attr("data-type")
             if( param_type == "float")
@@ -1378,6 +1448,14 @@ logging_notification_handler(event)
                 .catch(error => alert(error))
             }
         });
+        $('#fall_detection_submit').click(function(e){
+            e.preventDefault();
+            let duration = $("#fall_detection_duration").val();
+            let threshold = $("#fall_detection_threshold").val();
+            ss.writeFallConfig(threshold, duration)
+            .then(_ => alert("Wrote Fall Detection"))
+            .catch(error => alert(error))
+        });
         $('#logging_download').click(function(e){
             let filename = $('#logging_download_filename').val();
             console.log("filename is ")
@@ -1397,9 +1475,21 @@ logging_notification_handler(event)
             .then(_=> alert("Wrote Serial Number"))
             .catch(error=>alert(error));
         })
+        $('#smart_adaptive_enabled_submit').click(function(e){
+            e.preventDefault();
+            let config = {
+                "current":$('#smart_adaptive_current_enabled').val() === "1",
+                "voltage":$('#smart_adaptive_voltage_enabled').val() === "1"
+            };
+            ss.writeSmartAdaptiveEnabled(config)
+                .then(_ => alert("Wrote Smart Adaptive Enable/Disable"))
+                .catch(error => alert(error));
+        });
         $('.smart_adaptive .btn').click(function(e){
             e.preventDefault();
             let is_voltage = $(this).attr('data-adaptive-type') === "voltage"
+            // let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+            
             let config = fetch_smart_adaptive_config(is_voltage);
             ss.writeSmartAdaptiveConfig(is_voltage, config)
             .then(_ => alert("Wrote Smart Adaptive"))
@@ -1528,6 +1618,16 @@ logging_notification_handler(event)
               .then((config) =>{
                 apply_smart_adaptive_config(false, config);
               })
+              .then(_=> ss.readSmartAdaptiveEnabled(true))
+              .then((config) =>{
+                $('#smart_adaptive_voltage_enabled').val(config["voltage"] ? 1 : 0)
+                $('#smart_adaptive_current_enabled').val(config["current"] ? 1 : 0)
+              })
+              .then(_=> ss.readFallConfig())
+              .then((config) => {
+                $('#fall_detection_duration').val(config["duration"]);
+                $('#fall_detection_threshold').val(config["threshold"]);
+              })
               .then(_ => {
                 // console.log("done");
                 connected = true;
@@ -1549,9 +1649,6 @@ logging_notification_handler(event)
   <div class="container">
     <div class="row">
       <h1>Sixth Sense Configurator</h1>
-    </div>
-    <div class="row">
-        <h1> Do Not Use for 0.21.0 or later</h1>
     </div>
     <div class="row">
       <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>
@@ -1894,6 +1991,25 @@ logging_notification_handler(event)
             </form>
           </div>
         <div class="row">
+            <h4>Fall Detection Config</h4>
+            <h5>Note: This value is not saved across power cycle</h5>
+        </div>
+        <div class="row">
+            <form id="fall_detection">
+                <div class="form-group">
+                    <label for="fall_detection_threshold">Threshold</label>
+                    <input id="fall_detection_threshold"/>
+                    <p>A lower threshold makes the fall less likely to be detected. If it is too big, you are more likely to get false alarms. I have been using ~20</p>
+                </div>
+                <div class="form-group">
+                    <label for="fall_detection_duration">Duration</label>
+                    <input id="fall_detection_duration"/>
+                    <p>The duration that we must be in freefall in hundredths of 1s. (20 = 0.2s). This probably needs to be smaller than you expect</p>
+                </div>
+                <button href="#" class="btn btn-primary" id="fall_detection_submit">Apply Fall Detection</button>
+            </form>
+        </div>
+        <div class="row">
             <h4>UX Settings</h4>
         </div>
         <div class="row">
@@ -1909,19 +2025,36 @@ logging_notification_handler(event)
           </form>
       </div>
       <div class="row">
-        <h4>Smart Adaptive Mode</h4>
+        <h4>Smart Adaptive Configuration</h4>
       </div>
       <div class="row">
-        <h5>Voltage</h5>
+        <h5>Enabled/Disabled</h5>
       </div>
       <div class="row">
-        <form id="smart_adaptive_voltage" class="smart_adaptive" data-adaptive-type="voltage">
+        <form id="smart_adaptive_enabled">
             <div class="form-group">
-                <select data-param="enabled">
+                <label for="smart_adaptive_voltage_enabled">Voltage</label>
+                <select id="smart_adaptive_voltage_enabled">
                     <option value="0">Disabled</option>
                     <option value="1">Enabled</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label for="smart_adaptive_current_enabled">Current</label>
+                <select id="smart_adaptive_current_enabled">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </select>
+            </div>
+            <button href="#" class="btn btn-primary" id="smart_adaptive_enabled_submit">Apply Enable/Disable</button>
+        </form>
+      </div>
+      <div class="row">
+        <h5>Voltage Parameters</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_voltage" class="smart_adaptive" data-adaptive-type="voltage">
+            
             <div class="form-group">
                 <label>Slow Filter Alpha</label>
                 <input data-param="slow_alpha" data-type="float"/>
@@ -1946,16 +2079,10 @@ logging_notification_handler(event)
         </form>
       </div>
       <div class="row">
-        <h5>Current</h5>
+        <h5>Current Parameters</h5>
       </div>
       <div class="row">
         <form id="smart_adaptive_current" class="smart_adaptive" data-adaptive-type="current">
-            <div class="form-group">
-                <select data-param="enabled">
-                    <option value="0">Disabled</option>
-                    <option value="1">Enabled</option>
-                </select>
-            </div>
             <div class="form-group">
                 <label>Slow Filter Alpha</label>
                 <input data-param="slow_alpha" data-type="float"/>

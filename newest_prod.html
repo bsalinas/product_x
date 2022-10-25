@@ -1,0 +1,2434 @@
+<html>
+<head>
+    
+    <!-- <script src=product_x.js></script> -->
+    <script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <script>
+    const ALERT_SERVICE = "00000000-1212-efde-1523-780f0000000d"
+const CURRENT_READING_CHAR = "00000001-1212-efde-1523-780f0000000d"
+const CURRENT_REALERT_CHAR = "00000002-1212-efde-1523-780f0000000d"
+const CURRENT_YELLOW_CHAR = "00000003-1212-efde-1523-780f0000000d"
+const CURRENT_RED_CHAR = "00000004-1212-efde-1523-780f0000000d"
+const VOLTAGE_READING_CHAR = "00000005-1212-efde-1523-780f0000000d"
+const VOLTAGE_REALERT_CHAR = "00000006-1212-efde-1523-780f0000000d" 
+const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
+const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
+
+const VOLTAGE_MODE_RANGE = "00000010-1212-efde-1523-780f0000000d"
+const CURRENT_LOW_THRESHOLDS = "00000011-1212-efde-1523-780f0000000d"
+const CURRENT_HIGH_THRESHOLDS = "00000012-1212-efde-1523-780f0000000d"
+const SENSITIVITY_LEVEL = "00000013-1212-efde-1523-780f0000000d"
+const VOLTAGE_LOW_THRESHOLDS = "00000014-1212-efde-1523-780f0000000d"
+const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
+
+const SMART_ADAPTIVE_VOLTAGE = "00000016-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_CURRENT = "00000017-1212-efde-1523-780f0000000d"
+
+const LOGGING_CONFIG = "00000018-1212-efde-1523-780f0000000d"
+const FIND_ME = "00000019-1212-efde-1523-780f0000000d"
+const SERIAL_NUMBER = "0000001a-1212-efde-1523-780f0000000d"
+const UNLOCK = "0000001b-1212-efde-1523-780f0000000d"
+const FALL_CONFIG = "0000001c-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_ENABLED = "0000001d-1212-efde-1523-780f0000000d"
+const PROD_TEST_STATUS = "0000001f-1212-efde-1523-780f0000000d"
+
+const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
+const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
+const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
+
+const LOW_FILTER_THRESHOLD = "0000000c-1212-efde-1523-780f0000000d"
+const LOW_FILTER_ALPHA = "0000000d-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_THRESHOLD = "0000000e-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
+
+const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
+const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
+const UI_COLOR_CHAR = "00000002-1212-efde-1523-780d000000f0"
+const UI_SOUND_CHAR = "00000003-1212-efde-1523-780d000000f0"
+
+const NRF_NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+
+const NRF_NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+const NRF_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+
+
+const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
+const FW_VERSION = "00002a26-0000-1000-8000-00805f9b34fb"
+let trailing_current = [];
+let trailing_voltage = [];
+let trailing_voltage_idx = 0;
+let trailing_current_idx = 0;
+let TRAILING_COUNT = 40;
+class ProductX {
+
+  constructor(disconnect_cb) {
+    this.device = null;
+    this.disconnect_cb = disconnect_cb;
+    this.onDisconnected = this.onDisconnected.bind(this);
+  }
+  
+  request() {
+    let options = {
+      "filters": [{ 
+        "name": "SixthSense"
+      },{ 
+        "name": "6S"
+      }],
+      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE, NRF_NUS_SERVICE]
+    };
+    return navigator.bluetooth.requestDevice(options)
+    .then(device => {
+      this.device = device;
+      this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
+    })
+  }
+  
+  connect() {
+    if (!this.device) {
+      return Promise.reject('Device is not connected.');
+    }
+    return this.device.gatt.connect();
+}
+  
+  readVoltageYellow() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_YELLOW_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeVoltageYellow(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_YELLOW_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readVoltageRed() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_RED_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value);
+        let view = new Uint32Array(value.buffer);
+        console.log(view[0]);
+        return view[0];
+    })
+  }
+
+  writeVoltageRed(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_RED_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readVoltageRealert() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_REALERT_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value);
+        let view = new Uint32Array(value.buffer);
+        console.log(view[0]);
+        return view[0];
+    })
+  }
+
+  writeVoltageRealert(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_REALERT_CHAR))
+    .then(characteristic => characteristic.writeValue(data))
+  }
+
+   readCurrentYellow() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_YELLOW_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeCurrentYellow(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_YELLOW_CHAR))
+    .then(characteristic => characteristic.writeValue(data))
+    
+  }
+  readCurrentRed() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_RED_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeCurrentRed(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_RED_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCurrentRealert() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_REALERT_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+  writeCurrentRealert(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_REALERT_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+
+  calcMedian(data){
+    let sorted = [...data].sort();
+    if(data.length%2 == 1)
+    {
+        return sorted[(data.length-1)/2];
+    } else
+    {
+        return (sorted[data.length/2] + sorted[data.length/2-1])/2.0;
+    }
+  }
+  calculateStats(data){
+    let sum = 0;
+    let count = 0;
+    for(var pt_idx in data)
+    {
+        console.log(pt_idx)
+        sum = sum + data[pt_idx];
+        count = count + 1;
+    }
+    console.log(sum);
+    let avg = 0;
+    let median = this.calcMedian(data);
+    avg = sum/count;
+    let var_mean = 0;
+    let mad_data = [];
+    for(var pt_idx in data)
+    {
+        var_mean = var_mean + (data[pt_idx] - avg)*(data[pt_idx]-avg);
+        mad_data.push(Math.abs(data[pt_idx] - median))
+    }
+    var_mean = var_mean / count;
+    let mad = this.calcMedian(mad_data);
+    return {"stddev":Math.sqrt(var_mean),"mad":mad,"mean":avg, "median":median, "min":Math.min(...data), "max":Math.max(...data)}
+  }
+  resetStats(){
+    trailing_current = [];
+    trailing_voltage = [];
+    trailing_current_idx = 0;
+    trailing_voltage_idx = 0;
+  }
+  readCurrentField() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CURRENT_READING_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        let is_done = true;
+        if(trailing_current_idx < TRAILING_COUNT)
+        {
+            trailing_current[trailing_current_idx] = view[0];
+            trailing_current_idx++;
+            is_done = false;
+        }
+        // if(trailing_current_idx >= TRAILING_COUNT)
+        // {
+        //     trailing_current_idx = 0;
+        // }
+        let new_stats = this.calculateStats(trailing_current);
+        new_stats["reading"] = view[0];
+        new_stats["is_done"] = is_done;
+        return new_stats;
+    })
+  }
+  readVoltageField() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_READING_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        let is_done = true;
+        if(trailing_voltage_idx < TRAILING_COUNT)
+        {
+            trailing_voltage[trailing_voltage_idx] = view[0];
+            trailing_voltage_idx++;
+            is_done = false;
+        }
+        // if(trailing_voltage_idx >= TRAILING_COUNT)
+        // {
+        //     trailing_voltage_idx = 0;
+        // }
+        let new_stats = this.calculateStats(trailing_voltage);
+        new_stats["reading"] = view[0];
+        new_stats["is_done"] = is_done;
+        return new_stats;
+        // return view[0];
+    })
+  }
+  readProdTestStatus()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(PROD_TEST_STATUS))
+    .then(characteristic => characteristic.readValue())
+    .then(value =>{
+        let floatView = new Float32Array(value.buffer.slice(0,8));
+        let byteView = new Uint8Array(value.buffer);
+        let to_ret = {
+            "raw":value.buffer,
+            "ambient_light":floatView[0],
+            "battery_voltage":floatView[1],
+            "battery_charge_raw":byteView[8],
+            "battery_level":byteView[9],
+            "acc_test_raw":byteView[10]
+        };
+        let batt_chg_raw = to_ret["battery_charge_raw"]
+        if(batt_chg_raw == 0)
+        {
+            to_ret["battery_charge"] = "INVALID"
+        } else if(batt_chg_raw == 1)
+        {
+            to_ret["battery_charge"] = "USB_DISCONNECTED"
+        } 
+        else if(batt_chg_raw == 2)
+        {
+            to_ret["battery_charge"] = "CHARGING"
+        }  else if(batt_chg_raw == 3)
+        {
+            to_ret["battery_charge"] = "CHARGING_COMPLETE"
+        } 
+        else if(batt_chg_raw == 4)
+        {
+            to_ret["battery_charge"] = "BATTERY_FAULT"
+        }
+        let acc_test_raw = to_ret["acc_test_raw"]
+        to_ret["acc_test"] = {
+            "has_run": (acc_test_raw & 0b00001) ? true : false,
+            "result_x": (acc_test_raw & 0b00010) ? true : false,
+            "result_y": (acc_test_raw & 0b00100) ? true : false,
+            "result_z": (acc_test_raw & 0b01000) ? true : false,
+            "result_int": (acc_test_raw & 0b10000) ? true : false,
+        }
+        return to_ret;
+
+    });
+  }
+
+  readBrightness()
+  {
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeBrightness(value)
+  {
+    if(value > 255) value = 255;
+    let data = new Uint8Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service => service.getCharacteristic(UI_BRIGHTNESS_CHAR))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  async writeSound(values)
+  {
+    // let values = [{frequency:3000, duration:100}, {frequency:2000, duration:200}];
+    let count_of_writes = parseInt(values.length/25);
+    if(values.length%25 != 0) count_of_writes++;
+    let arr_of_buffers = []
+    let remaining_length = values.length;
+    let sound_idx = 0;
+    while(remaining_length > 0)
+    {
+        let this_length = 25;
+        if(remaining_length < 25) this_length = remaining_length;
+        let buffer = new ArrayBuffer(3*this_length+1);
+        let data = new Uint8Array(buffer);
+        let buffer_idx=0;
+        data[buffer_idx] = sound_idx;
+        buffer_idx++;
+        for(let i=0; i<this_length; i++)
+        {
+            let raw = (values[i+sound_idx].frequency & 0x1FFF) | ((values[i+sound_idx].duration & 0xFFF) << 13);
+            console.log("raw is "+raw)
+            data[buffer_idx] = raw&0x0000FF;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            data[buffer_idx] = (raw&0x00FF00)>>8;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            data[buffer_idx] = (raw&0xFF0000)>>16;
+            console.log(data[buffer_idx]);
+            buffer_idx++;
+            // data[idx] = values[values_idx].frequency;
+            // idx++;
+            // data[idx] = values[values_idx].duration;
+            // idx++;
+        }
+        sound_idx = sound_idx + this_length;
+        remaining_length = remaining_length - this_length;
+        arr_of_buffers.push(buffer);
+    }
+    for(let idx in arr_of_buffers)
+    {
+        await this.device.gatt.getPrimaryService(UI_SERVICE)
+        .then(service => service.getCharacteristic(UI_SOUND_CHAR))
+        .then(characteristic =>characteristic.writeValue(arr_of_buffers[idx]))
+    }
+    return true;
+
+  }
+  writeLEDColors(values, on_time, off_time)
+  {
+    let buffer = new ArrayBuffer(16)
+    let view = new DataView(buffer);
+    let idx = 0;
+    for(var color_idx in values)
+    {
+        let color = values[color_idx]
+        console.log(color);
+        view.setUint8(idx, color["red"]);
+        // data[idx] = color["red"];
+        idx++;
+        // data[idx] = color["green"];
+        view.setUint8(idx, color["green"]);
+        idx++;
+        view.setUint8(idx, color["blue"]);
+        // data[idx] = color["blue"];
+        idx++;
+    }
+    view.setUint16(idx,on_time, true);
+    idx+=2;
+    view.setUint16(idx,off_time, true);
+    console.log(buffer);
+    return this.device.gatt.getPrimaryService(UI_SERVICE)
+    .then(service=> service.getCharacteristic(UI_COLOR_CHAR))
+    .then(characteristic =>characteristic.writeValue(buffer))
+  }
+  // readAlgorithmConfigNew() {
+  //   return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+  //   .then(service=> service.getCharacteristics())
+  //   .then(all_characteristics => {
+  //       for(let idx in all_characteristics)
+  //       {
+  //           let ch = all_characteristics[idx];
+  //           if(ch.uuid == ALGORITHM_CONFIG)
+  //           {
+  //               return ch.readValue();
+  //           }
+  //       }
+  //       return {"buffer":[0]}
+  //   })
+  //   // .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+  //   // .then(characteristic => characteristic.readValue())
+  //   // .error(error => {
+  //   //     return 0;
+  //   // })
+  //   .then(value => {
+  //       let view = new Uint8Array(value.buffer);
+  //       return view[0];
+  //   })
+  // }
+  readAlgorithmConfig() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == ALGORITHM_CONFIG)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    // .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    // .then(characteristic => characteristic.readValue())
+    // .error(error => {
+    //     return 0;
+    // })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+
+
+  writeAlgorithmConfig(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCrewChannel() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == CREW_CHANNEL)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("crew channel is",view[0])
+        return view[0];
+    })
+  }
+  writeCrewChannel(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    console.log("writeCrewChannel",value);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CREW_CHANNEL))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readCrewModeForcedEnabled() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == CREW_MODE_FORCED_ENABLED)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeCrewModeForcedEnabled(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(CREW_MODE_FORCED_ENABLED))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readFirmwareVersion(){
+    return this.device.gatt.getPrimaryService(DEVICE_INFORMATION_SERVICE)
+    .then(service => service.getCharacteristic(FW_VERSION))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value)
+        let enc = new TextDecoder("utf-8");
+        let arr = new Uint8Array(value.buffer);
+        let version = enc.decode(arr);
+        console.log(version)
+        return version;
+    })
+  }
+  readLowFilterThreshold() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == LOW_FILTER_THRESHOLD)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeLowFilterThreshold(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(LOW_FILTER_THRESHOLD))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readLowFilterAlpha() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == LOW_FILTER_ALPHA)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("readLowFilterAlpha ",view[0]);
+        return view[0]/1000.0;
+    })
+  }
+  writeLowFilterAlpha(value) {
+    let data = new Uint32Array(1);
+    data[0] = (value*1000);
+    console.log("writeLowFilterAlpha ",value," ",data[0]);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(LOW_FILTER_ALPHA))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readDeltaFilterAlpha() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == DELTA_FILTER_ALPHA)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("readDeltaFilterAlpha ",view[0]);
+        return view[0]/1000.0;
+    })
+  }
+  writeDeltaFilterAlpha(value) {
+    let data = new Uint32Array(1);
+    data[0] = (value*1000);
+    console.log("writeDeltaFilterAlpha ",value," ",data[0]);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(DELTA_FILTER_ALPHA))
+    .then(characteristic => characteristic.writeValue(data));
+  } 
+  readDeltaFilterThreshold() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == DELTA_FILTER_THRESHOLD)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeDeltaFilterThreshold(value) {
+    let data = new Uint32Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(DELTA_FILTER_THRESHOLD))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readCurrentThresholds(is_high)
+  {
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == uuid)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("Data length is "+view.length);
+        return {"yellow":[view[0], view[1], view[2], view[3]], "red":[view[4], view[5], view[6], view[7]]}
+    })
+  }
+  writeCurrentThresholds(is_high, values)
+  {
+    let buffer = new ArrayBuffer(32)
+    let data = new Uint32Array(buffer)
+    let data_idx = 0;
+    for(var value_idx in values["yellow"])
+    {
+        let value = values["yellow"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    data_idx = 4;
+    for(var value_idx in values["red"])
+    {
+        let value = values["red"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    console.log(buffer);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(uuid))
+        .then(characteristic => characteristic.writeValue(buffer))
+
+  }
+  readVoltageThresholds(is_high)
+  {
+    let uuid = VOLTAGE_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = VOLTAGE_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == uuid)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint16Array(value.buffer);
+        console.log("Data length is "+view.length);
+        return {"yellow":[view[0], view[1], view[2], view[3]], "red":[view[4], view[5], view[6], view[7]]}
+    })
+  }
+  writeVoltageThresholds(is_high, values)
+  {
+    let buffer = new ArrayBuffer(16)
+    let data = new Uint16Array(buffer)
+    let data_idx = 0;
+    for(var value_idx in values["yellow"])
+    {
+        let value = values["yellow"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    data_idx = 4;
+    for(var value_idx in values["red"])
+    {
+        let value = values["red"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    let uuid = VOLTAGE_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = VOLTAGE_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(uuid))
+        .then(characteristic => characteristic.writeValue(buffer))
+
+  }
+  readVoltageRange(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeVoltageRange(value){
+    let data = new Uint8Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readSensitivityLevel(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"voltage":view[0], "current":view[1]}
+    })
+  }
+  readSerialNumber(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == SERIAL_NUMBER)
+            {
+                return ch.readValue()
+                .then(value => {
+                    let view = new Uint32Array(value.buffer);
+                    return view[1];
+                });
+            }
+        }
+        return 0
+    })
+  }
+  writeSerialNumber(number)
+  {
+    let data = new Uint32Array(2);
+    // data[0] = 0xAABBCCDD;
+    data[0] = 0xDDCCBBAA;
+    data[1] = number;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SERIAL_NUMBER))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  writeSensitivityLevel(sensitivity){
+    let data = new Uint8Array(2);
+    data[0] = sensitivity["voltage"];
+    data[1] = sensitivity["current"];
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  writeSmartAdaptiveConfig(is_voltage, config)
+  {
+    let characteristic_uuid = is_voltage ? SMART_ADAPTIVE_VOLTAGE : SMART_ADAPTIVE_CURRENT;
+    let buffer = new ArrayBuffer(28);
+    let view = new DataView(buffer);
+    view.setUint32(0,1000.0*config["slow_alpha"],true)
+    view.setUint32(4,1000.0*config["fast_alpha"],true)
+    view.setUint32(8,config["entering_threshold"],true)
+    view.setUint32(12,config["exiting_threshold"],true)
+    view.setUint32(16,config["entering_time_delay"],true)
+    view.setUint32(20,config["exiting_time_delay"],true)
+    view.setUint32(24,0);
+    // view.setUint32(24,config["enabled"] ? 1 : 0,true)
+    let view8 = new Uint8Array(buffer);
+    for(let i=0; i<view8.length; i++)
+    {
+        console.log("d["+i+"]="+view8[i].toString(16));
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(characteristic_uuid))
+    .then(characteristic => characteristic.writeValue(view8));
+  }
+  readSmartAdaptiveConfig(is_voltage)
+  {
+    let characteristic_uuid = is_voltage ? SMART_ADAPTIVE_VOLTAGE : SMART_ADAPTIVE_CURRENT;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(characteristic_uuid))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view32 = new Uint32Array(value.buffer);
+        let viewFloat = new Float32Array(value.buffer);
+        let to_ret = {
+            "slow_alpha":view32[0]/1000.0,
+            "fast_alpha":view32[1]/1000.0,
+            "entering_threshold":view32[2],
+            "exiting_threshold":view32[3],
+            "entering_time_delay":view32[4],
+            "exiting_time_delay":view32[5],
+            // "enabled":(view32[6] & 0b1) ? true : false
+        }
+        let view8 = new Uint8Array(value.buffer)
+        for(let i=0; i<view8.length; i++)
+        {
+            console.log("d["+i+"]="+view8[i].toString(16));
+        }
+        console.log(to_ret);
+        return to_ret;
+    })
+  }
+  readSmartAdaptiveEnabled()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view8 = new Uint8Array(value.buffer);
+        let to_ret = {
+            "enabled":view8[0] == 1 ? true : false,
+            // "voltage":view8[0] == 1 ? true : false
+        }
+        console.log(to_ret);
+        return to_ret;
+    })
+  }
+  writeSmartAdaptiveEnabled(config)
+  {
+    let buffer = new ArrayBuffer(1);
+    let view = new DataView(buffer);
+    view.setUint8(0,config["enabled"] ? 1 : 0)
+    // view.setUint8(1,config["voltage"] ? 1 : 0)
+    let view8 = new Uint8Array(buffer);
+    for(let i=0; i<view8.length; i++)
+    {
+        console.log("d["+i+"]="+view8[i].toString(16));
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.writeValue(view8));
+  }
+  writeFallConfig(threshold, duration)
+  {
+    let data = new Uint8Array(2);
+    data[0] = threshold;
+    data[1] = duration;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(FALL_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readFallConfig()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == FALL_CONFIG)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"thresold":0, "duration":0}
+    })
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"threshold":view[0], "duration":view[1]}
+    })
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(FALL_CONFIG))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"threshold":view[0], "duration":view[1]}
+    })
+  }
+//   function copy(src)  {
+//     var dst = new ArrayBuffer(src.byteLength);
+//     new Uint8Array(dst).set(new Uint8Array(src));
+//     return dst;
+// }
+logging_notification_handler(event)
+  {
+    let value = event.target.value;
+    console.log("Adding "+value.byteLength);
+    if(!this.logging_data)
+    {
+        let new_data = new ArrayBuffer(12)
+        let now = Date.now()
+        //javacript doesn't do bit shifting for 64 bit numbers.
+        let lower = (now%Math.pow(2,32))
+        let upper = (now - lower)/Math.pow(2,32)
+        
+        new Uint32Array(new_data).set(new Uint32Array([0x01, lower, upper]),0)
+        this.logging_data = new_data;
+    }
+    if(this.logging_data)
+    {
+        let new_data = new ArrayBuffer(this.logging_data.byteLength + event.target.value.byteLength)
+        new Uint8Array(new_data).set(new Uint8Array(this.logging_data),0)
+        new Uint8Array(new_data).set(new Uint8Array(event.target.value.buffer),this.logging_data.byteLength);
+        this.logging_data = new_data
+        console.log(this.logging_data);
+    }
+  }
+  startLogging(logging_type)
+  {
+    let val = 0;
+    if(logging_type["voltage"]) val = val | 0b001;
+    if(logging_type["current"]) val = val | 0b010;
+    let uint8 = new Uint8Array([val])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(LOGGING_CONFIG))
+        .then(characteristic => characteristic.writeValue(uint8))
+        .then(val => this.device.gatt.getPrimaryService(NRF_NUS_SERVICE))
+        .then(service => service.getCharacteristic(NRF_NUS_TX))
+        .then(characteristic => {
+            let rxCharacteristic = characteristic;
+            return rxCharacteristic.startNotifications()
+            .then(_ =>{
+                rxCharacteristic.addEventListener("characteristicvaluechanged",this.logging_notification_handler)
+            })
+        })   
+  }
+  stopLogging()
+  {
+    return this.device.gatt.getPrimaryService(NRF_NUS_SERVICE)
+    .then(service => service.getCharacteristic(NRF_NUS_TX))
+    .then(characteristic => {
+        characteristic.stopNotifications()
+        characteristic.removeEventListener("characteristicvaluechanged",this.logging_notification_handler)
+        this.logged_data = characteristic.logging_data;
+        characteristic.logging_data = false;
+    })
+
+  }
+  loggedData()
+  {
+    return this.logged_data;
+  }
+  findMe()
+  {
+    let uint8 = new Uint8Array([1])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(FIND_ME))
+        .then(characteristic =>characteristic.writeValue(uint8))
+  }
+  promptForUnlock()
+  {
+    let uint8 = new Uint8Array([1])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(UNLOCK))
+        .then(characteristic =>characteristic.writeValue(uint8))
+  }
+  disconnect() {
+    if (!this.device) {
+      return Promise.reject('Device is not connected.');
+    }
+    return this.device.gatt.disconnect();
+  }
+
+  onDisconnected() {
+    console.log('Device is disconnected.');
+    if(this.disconnect_cb)
+    {
+        this.disconnect_cb();
+    }
+  }
+}
+
+
+  </script>
+  <style>
+    .stat_parent
+    {
+        background:#f2f2f2;
+        max-width:150px;
+        border-radius:10px;
+        padding:10px;
+        margin:10px;
+        display:inline-block;
+
+    }
+    .card-body h5
+    {
+        color: #888;
+    }
+    .card-body h5.done
+    {
+        color: black;
+    }
+    .stat_parent .stat_value
+    {
+        font-size:2em;
+    }
+    .stat_parent .stat_label
+    {
+        font-size:1em;
+    }
+    textarea{
+      width: 100%;
+      min-height: 10em;
+    }
+    label
+    {
+      font-weight: 800;
+    }
+  </style>
+  <script>
+    function hex_color_to_rgb(hex_color)
+    {
+      const r = parseInt(hex_color.substr(1,2), 16)
+      const g = parseInt(hex_color.substr(3,2), 16)
+      const b = parseInt(hex_color.substr(5,2), 16)
+      return {"red":r, "green":g, "blue":b};
+    }
+    const tones = {"B0":31,"C1":33,"CS1":35,"D1":37,"DS1":39,"E1":41,"F1":44,"FS1":46,"G1":49,"GS1":52,"A1":55,"AS1":58,"B1":62,"C2":65,"CS2":69,"D2":73,"DS2":78,"E2":82,"F2":87,"FS2":93,"G2":98,"GS2":104,"A2":110,"AS2":117,"B2":123,"C3":131,"CS3":139,"D3":147,"DS3":156,"E3":165,"F3":175,"FS3":185,"G3":196,"GS3":208,"A3":220,"AS3":233,"B3":247,"C4":262,"CS4":277,"D4":294,"DS4":311,"E4":330,"F4":349,"FS4":370,"G4":392,"GS4":415,"A4":440,"AS4":466,"B4":494,"C5":523,"CS5":554,"D5":587,"DS5":622,"E5":659,"F5":698,"FS5":740,"G5":784,"GS5":831,"A5":880,"AS5":932,"B5":988,"C6":1047,"CS6":1109,"D6":1175,"DS6":1245,"E6":1319,"F6":1397,"FS6":1480,"G6":1568,"GS6":1661,"A6":1760,"AS6":1865,"B6":1976,"C7":2093,"CS7":2217,"D7":2349,"DS7":2489,"E7":2637,"F7":2794,"FS7":2960,"G7":3136,"GS7":3322,"A7":3520,"AS7":3729,"B7":3951,"C8":4186,"CS8":4435,"D8":4699,"DS8":4978};
+
+    function apply_smart_adaptive_config(is_voltage, config)
+    {
+        let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+        for(var key in config)
+        {
+            let value = config[key];
+            $parent.find('[data-param="'+key+'"]').val(value);    
+            // if(key === "enabled")
+            // {
+            //     if(value) value = "1";
+            //     else value = "0";
+            //     $parent.find('[data-param="'+key+'"]').val(value);
+            // } else
+            // {
+            //     $parent.find('[data-param="'+key+'"]').val(value);    
+            // }
+        }
+    }
+    function buf2hex(buffer) { // buffer is an ArrayBuffer
+      return [...new Uint8Array(buffer)]
+          .map(x => x.toString(16).padStart(2, '0'))
+          .join(',');
+    }
+    function fetch_smart_adaptive_config(is_voltage)
+    {
+        let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+        // let enabled = $parent.find('[data-param="enabled"]').val() === "1";
+        let to_ret = {};
+        $.each($parent.find('input[data-param]'),function(idx,el){
+            let param_type = $(el).attr("data-type")
+            if( param_type == "float")
+            {
+                to_ret[$(el).attr("data-param")] = parseFloat($(el).val())    
+            } else
+            {
+                to_ret[$(el).attr("data-param")] = parseInt($(el).val())    
+            }
+            
+         })
+        console.log(to_ret);
+        return to_ret;
+    }
+    $(document).ready(function(e){
+
+        // $(".color_picker").append($("#color_picker_template").html())
+        // $("#color_picker_template").hide();
+        let current_timeout = false;
+        let voltage_timeout = false;
+        function stop_current()
+        {
+          if(current_timeout !== false)
+          {
+           $('#read_current').text("Read Current");
+            clearInterval(current_timeout);
+            current_timeout = false;
+            $('#field_current').text("---");
+          }
+        }
+        function stop_voltage()
+        {
+          if(voltage_timeout !== false)
+          {
+           $('#read_voltage').text("Read Voltage");
+            clearInterval(voltage_timeout);
+            $('#field_voltage').text("---");
+            voltage_timeout = false;
+          }
+        }
+        function onDisconnect(e)
+        {
+          console.log("Disconnected!");
+            $(".connected").hide();
+            $('.working').hide();
+            $(".disconnected").show();
+            connected = false;
+            stop_current();
+            stop_voltage();
+            
+            
+        }
+        function populate_thresholds(thresholds, reading, level){
+          console.log(thresholds)
+          let parent = 'form[data-reading-type="'+reading+'"][data-voltage-level="'+level+'"]'
+          for(var yellow_idx in thresholds["yellow"])
+          {
+            let idx_to_print = parseInt(yellow_idx)+1;
+            console.log(idx_to_print)
+            console.log(parent + ' [data-color="yellow"][data-sensitivity="'+(idx_to_print)+'"]');
+            $(parent + ' [data-color="yellow"][data-sensitivity="'+(idx_to_print)+'"]').val(thresholds["yellow"][yellow_idx]);
+          }
+          for(var yellow_idx in thresholds["yellow"])
+          {
+            let idx_to_print = parseInt(yellow_idx)+1;
+            $(parent + ' [data-color="red"][data-sensitivity="'+(idx_to_print)+'"]').val(thresholds["red"][yellow_idx]);
+          }
+        }
+        let voltage_yellow = 0;
+        let voltage_red = 0;
+        let voltage_realert = 0;
+        let current_yellow = 0;
+        let current_red = 0;
+        let current_realert = 0;
+        let connected = false;
+        let ss = new ProductX(onDisconnect);
+        $(".connected").hide();
+        $(".working").hide();
+        $(".disconnected").show();
+        $("#crew_mode_submit").click(function(evt){
+            evt.preventDefault();
+            stop_current();
+            stop_voltage();
+            let new_channel = parseInt($("#crew_channel").val());
+            ss.writeCrewChannel(new_channel)
+            .then(_ =>{
+                alert("Successfully Wrote Crew Mode Settings");
+            })
+            .catch(error =>{
+                alert(error);
+            })
+        });
+        $('#unlock_button').click(function(evt){
+            evt.preventDefault();
+            ss.promptForUnlock()
+            .then(_=>{
+                alert("Prompting for Unlock. Press the button.")
+            })
+            .catch(error =>{
+                alert(error)
+            })
+        })
+        $('#find_me_button').click(function(evt){
+            evt.preventDefault();
+            ss.findMe()
+            .then(_=>{
+                alert("Success. Device should be blinking")
+            })
+            .catch(error =>{
+                alert(error)
+            })
+        })
+        $("#filter_submit").click(function(evt){
+            evt.preventDefault();
+            stop_current();
+            stop_voltage();
+            let low_threshold = parseInt($("#low_filter_threshold").val());
+            let low_alpha = parseFloat($("#low_filter_alpha").val());
+            let delta_threshold = parseInt($("#delta_filter_threshold").val());
+            let delta_alpha = parseFloat($("#delta_filter_alpha").val());
+            ss.writeLowFilterThreshold(low_threshold)
+            .then(_ => ss.writeLowFilterAlpha(low_alpha))
+            .then(_ => ss.writeDeltaFilterThreshold(delta_threshold))
+            .then(_ => ss.writeDeltaFilterAlpha(delta_alpha))
+            .then(_ =>{
+                alert("Successfully Wrote Filter Settings");
+            })
+            .catch(error =>{
+                alert(error);
+            })
+        });
+        
+        $("#read_current").click(function(evt){
+            evt.preventDefault();
+            if(current_timeout === false)
+            {
+                $('#read_current').text("Stop Current");
+                current_timeout = setInterval(function(){
+                    ss.readCurrentField()
+                    .then(value =>{
+                        $("#field_current").text(value["reading"]);
+                        $("#avg_current").text("mean:("+value["mean"].toFixed(1)+" , "+value["stddev"].toFixed(1)+")")
+                        $("#med_current").text("med:("+value["median"].toFixed(1)+" , "+value["mad"].toFixed(1)+")")
+                        $("#minmax_current").text("min:"+value["min"].toFixed(0)+" , max:"+value["max"].toFixed(0) +" delta: "+(value["max"]-value["min"]));
+                        if(value["is_done"])
+                        {
+                            $("#avg_current").addClass("done")
+                            $("#med_current").addClass("done")
+                            $("#minmax_current").addClass("done");
+                        } else
+                        {
+                            $("#avg_current").removeClass("done")
+                            $("#med_current").removeClass("done")
+                            $("#minmax_current").removeClass("done");
+                        }
+                    });
+                }, 200);
+            } else
+            {
+                stop_current();
+            }
+        });
+        $('#reset_stats').click(function(evt){
+            evt.preventDefault();
+            ss.resetStats();
+        })
+        $("#read_voltage").click(function(evt){
+            evt.preventDefault();
+            if(voltage_timeout === false)
+            {
+                $('#read_voltage').text("Stop Voltage");
+                voltage_timeout = setInterval(function(){
+                    ss.readVoltageField()
+                    .then(value =>{
+                        $("#field_voltage").text(value["reading"]);
+                        $("#avg_voltage").text("mean:"+value["mean"].toFixed(1)+" , "+value["stddev"].toFixed(1)+")")
+                        $("#med_voltage").text("med:("+value["median"].toFixed(1)+" , "+value["mad"].toFixed(1)+")")
+                        $("#minmax_voltage").text("min:"+value["min"].toFixed(0)+" , max:"+value["max"].toFixed(0) +" delta: "+(value["max"]-value["min"]));
+                        if(value["is_done"])
+                        {
+                            $("#avg_voltage").addClass("done")
+                            $("#med_voltage").addClass("done")
+                            $("#minmax_voltage").addClass("done");
+                        } else
+                        {
+                            $("#avg_voltage").removeClass("done")
+                            $("#med_voltage").removeClass("done")
+                            $("#minmax_voltage").removeClass("done");
+                        }
+                    });
+                }, 200);
+            } else
+            {
+                stop_voltage();
+            }
+        });
+        $('#algorithm_config_submit').click(function(event){
+            event.preventDefault();
+            stop_current();
+            stop_voltage();
+            let new_mode = parseInt($("#algorithm_mode").val());
+            let range = parseInt($("#voltage_range").val());
+            let sensitivity_voltage = parseInt($("#sensitivity_voltage").val());
+            let sensitivity_current = parseInt($("#sensitivity_current").val());
+            let sensitivity = {"voltage":sensitivity_voltage, "current":sensitivity_current}
+            ss.writeAlgorithmConfig(new_mode)
+            .then(_=> ss.writeVoltageRange(range))
+            .then(_=> ss.writeSensitivityLevel(sensitivity))
+            .then(_ => {
+                alert("Successfully Wrote Algorithm Configuration");
+            })
+            .catch(error => {
+                alert(error);
+            })
+        });
+        $('#ux_values_submit').click(function(event){
+            event.preventDefault();
+            stop_current();
+            stop_voltage();
+            let new_brightness = parseFloat($("#brightness").val())
+            let scaled_brightness = 255.0*new_brightness/100.0;
+            ss.writeBrightness(scaled_brightness)
+            .then(_=>{
+                alert("Successfully Wrote UX Settings");
+            })
+            .catch(error => {
+                alert(error);
+            })
+
+        });
+        $("#sound_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let sound_text = $("#sound_content").val();
+          // console.log(sound_text);
+          let lines = sound_text.split("\n");
+          let sound = []
+          let sound_idx = 0;
+          for(line_idx in lines)
+          {
+            let line = lines[line_idx];
+            let values = line.split(",")
+            if(values.length != 2)
+            {
+              alert("Incorrect formatting on line \""+line+"\"");
+            } else if(sound_idx < 250){
+              let tone = values[0]
+              if(tones[values[0]])
+              {
+                tone = tones[values[0]]
+              }
+              sound.push({frequency:tone, duration:values[1]})  
+              sound_idx++;
+            } else
+            {
+              alert("Too many tones. Max is 250");
+            }
+          }
+          console.log(sound);
+          ss.writeSound(sound).then(_=>{alert("Successfully wrote Sound")}).catch(error=>{alert(error)})
+        });
+        $(".color_picker_hex").change(function(event){
+          let val = $(this).val();
+          if(val.length == 6 && val[0] != "#" || val.length == 7 && val[0] == "#")
+          {
+            let new_value = val;
+            if(val[0] != "#")
+            {
+              new_value = "#" + val;
+            }
+            $("#"+$(this).attr("data-for")).val(new_value)
+          }
+        });
+        $('input[type="color"]').change(function(event){
+          $('.color_picker_hex[data-for="'+$(this).attr("id")+'"]').val($(this).val())
+        });
+        $("#color_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let values = [hex_color_to_rgb($('#color_0').val()),
+            hex_color_to_rgb($('#color_1').val()), 
+            hex_color_to_rgb($('#color_2').val()),
+            hex_color_to_rgb($('#color_3').val())
+          ];
+          let on_time = parseInt($("#led_on_time").val())
+          let off_time = parseInt($("#led_off_time").val())
+          ss.writeLEDColors(values, on_time, off_time).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
+        })
+        
+        $("#color_revert_submit").click(function(event){
+          event.preventDefault();
+          stop_current();
+          stop_voltage();
+          let values = [hex_color_to_rgb("#000000"),
+            hex_color_to_rgb("#000000"), 
+            hex_color_to_rgb("#000000"),
+            hex_color_to_rgb("#000000")
+          ];
+          ss.writeLEDColors(values).then(_=>{alert("Successfully wrote Colors")}).catch(error=>{alert(error)})
+        })
+        $("#disconnect").click(function(e){
+            if(connected)
+            {
+              stop_current();
+              stop_voltage();
+              $(".connected").hide();
+                $(".working").show();
+                ss.disconnect()
+                
+                // $(".disconnected").show();
+                // connected = false;
+            }
+        });
+        $('form.sensitivity_form button').click(function(e){
+          e.preventDefault();
+          let reading = $(this).attr('data-reading-type');
+          let level = $(this).attr('data-voltage-level');
+          let form_selector = 'form[data-reading-type="'+reading+'"][data-voltage-level="'+level+'"]'
+          let thresholds = {"yellow":[], "red":[]};
+          for(var i=1; i<=4; i++)
+          {
+            thresholds["yellow"].push($(form_selector+' [data-color="yellow"][data-sensitivity="'+(i)+'"]').val());
+            thresholds["red"].push($(form_selector+' [data-color="red"][data-sensitivity="'+(i)+'"]').val());
+          }
+          console.log(thresholds);
+          if(reading == "current")
+          {
+            ss.writeCurrentThresholds(level === "high", thresholds)
+            .then(_=>alert("Successfully wrote "+level+" "+reading + " thresholds"))
+            .catch(error=>alert(error))
+          } else if(reading == "voltage")
+          {
+            ss.writeVoltageThresholds(level === "high", thresholds)
+            .then(_=>alert("Successfully wrote "+level+" "+reading + " thresholds"))
+            .catch(error=>alert(error))
+          }
+
+        })
+        $('#logging').click(function(e){
+            e.preventDefault();
+            if($("#logging").attr("data-logging") == "yes")
+            {
+                ss.stopLogging()
+                .then(_ => alert("Logging Stopped"))
+                .then(_ =>{
+                    $('#logging').text("Start Logging");
+                    $("#logging").attr("data-logging","no")
+                })
+                .then(_ => {
+                    console.log(ss.loggedData());
+                    let blob = new Blob([ss.loggedData()], {type: "application/octet-stream"})
+                    let url = window.URL.createObjectURL(blob);
+                    $("#logging_download").attr("href",url);
+                    $("#logging_download_parent").show();
+
+                })
+                .catch(error => alert(error))
+            } else
+            {
+                let voltage_logging = $('#logging_voltage').is(":checked")
+                let current_logging = $('#logging_current').is(":checked")
+                
+                ss.startLogging({"voltage":voltage_logging, "current":current_logging})
+                .then(_ => alert("Logging Started"))
+                .then(_ =>{
+                    $('#logging').text("Stop Logging");
+                    $("#logging").attr("data-logging","yes")
+                    $("#logging_download_parent").hide();
+                })
+                .catch(error => alert(error))
+            }
+        });
+        $('#fall_detection_submit').click(function(e){
+            e.preventDefault();
+            let duration = $("#fall_detection_duration").val();
+            let threshold = $("#fall_detection_threshold").val();
+            ss.writeFallConfig(threshold, duration)
+            .then(_ => alert("Wrote Fall Detection"))
+            .catch(error => alert(error))
+        });
+        $('#logging_download').click(function(e){
+            let filename = $('#logging_download_filename').val();
+            console.log("filename is ")
+            console.log(filename)
+            filename = filename.trim();
+            if(filename == "")
+            {
+                filename="ss_log"
+            }
+            filename+=".bin";
+            $("#logging_download").attr("download",filename)
+        })
+        $('#btn_serial_number').click(function(e){
+            e.preventDefault();
+            let serial_number = parseInt($("#serial_number").val());
+            ss.writeSerialNumber(serial_number)
+            .then(_=> alert("Wrote Serial Number"))
+            .catch(error=>alert(error));
+        })
+        $('#smart_adaptive_enabled_submit').click(function(e){
+            e.preventDefault();
+            let config = {
+                "enabled":$('#smart_adaptive_enabled').val() === "1",
+                // "voltage":$('#smart_adaptive_voltage_enabled').val() === "1"
+            };
+            ss.writeSmartAdaptiveEnabled(config)
+                .then(_ => alert("Wrote Smart Adaptive Enable/Disable"))
+                .catch(error => alert(error));
+        });
+        $('.smart_adaptive .btn').click(function(e){
+            e.preventDefault();
+            let is_voltage = $(this).attr('data-adaptive-type') === "voltage"
+            // let $parent =  is_voltage ? $("#smart_adaptive_voltage") : $("#smart_adaptive_current");
+            
+            let config = fetch_smart_adaptive_config(is_voltage);
+            ss.writeSmartAdaptiveConfig(is_voltage, config)
+            .then(_ => alert("Wrote Smart Adaptive"))
+            .catch(error => alert(error));
+        })
+        $('#prod_test').click(function(e){
+            e.preventDefault();
+            ss.readProdTestStatus()
+            .then((status)=>{
+                console.log(status);
+                // console.log(buf2hex(status["raw"]));
+                $('#prod_test_raw').text(buf2hex(status["raw"]))
+                $('#amb_light').text(status["ambient_light"])
+                $('#batt_voltage').text(status["battery_voltage"])
+                $('#batt_level').text(status["battery_level"]+"/4")
+                $('#batt_charge').text(status["battery_charge"]+"("+status["battery_charge_raw"]+")")
+                $('#acc_test_ran').text(status["acc_test"]["has_run"] ? "YES" : "NO")
+                if(status["acc_test"]["has_run"])
+                {
+                    $('#acc_test_res_x').text(status["acc_test"]["result_x"] ? "PASS" :"FAIL")
+                    $('#acc_test_res_y').text(status["acc_test"]["result_y"] ? "PASS" :"FAIL")
+                    $('#acc_test_res_z').text(status["acc_test"]["result_z"] ? "PASS" :"FAIL")
+                    $('#acc_test_res_int').text(status["acc_test"]["result_int"] ? "PASS" : "FAIL")
+                } else
+                {
+                    $('#acc_test_res_x').text("UNKNOWN")
+                    $('#acc_test_res_y').text("UNKNOWN")
+                    $('#acc_test_res_z').text("UNKNOWN")
+                    $('#acc_test_res_int').text("UNKNOWN")
+                }
+            })
+            .catch(error=>alert(error));
+        });
+        $("#connect").click(function(e){
+            ss.request()
+              .then(_ => {
+                $(".disconnected").hide();
+                $('.working').show();
+              })
+              .then(_ => ss.connect())
+              .then(_ => { 
+                console.log("connected");
+              })
+              .then(_ => ss.readCurrentThresholds(false))
+              .then((thresholds)=>{
+                  populate_thresholds(thresholds, "current", "low")
+              })
+              .then(_ => ss.readCurrentThresholds(true))
+              .then((thresholds)=>{
+                populate_thresholds(thresholds, "current", "high")
+              })
+              .then(_ => ss.readVoltageThresholds(false))
+              .then((thresholds)=>{
+                  populate_thresholds(thresholds, "voltage", "low")
+              })
+              .then(_ => ss.readVoltageThresholds(true))
+              .then((thresholds)=>{
+                populate_thresholds(thresholds, "voltage", "high")
+              })
+              .then(_=>ss.readVoltageRange())
+              .then((range) =>{
+                console.log("range is "+range);
+              })
+              .then(_=>ss.readSensitivityLevel())
+              .then((sensitivity) =>{
+                // console.log("sensitivity is "+sensitivity);
+                $("#sensitivity_voltage").val(sensitivity["voltage"]);
+                $("#sensitivity_current").val(sensitivity["current"]);
+              })
+              .then(_=>ss.readSerialNumber())
+              .then((serial_number) =>{
+                if(serial_number == 0xFFFFFFFF)
+                {
+                    $('#serial_number').val(0);    
+                } else
+                {
+                    $('#serial_number').val(serial_number);
+                }
+                
+              })
+              .then(_=>ss.readVoltageRange())
+              .then((range) =>{
+                console.log("range is "+range);
+                $("#voltage_range").val(range);
+              })
+              // .then(_ => ss.readVoltageYellow())
+              // .then((yellow) => {
+              //   voltage_yellow = yellow;
+              //   $('#voltage_yellow').val(voltage_yellow);
+              // })
+              // .then(_ => ss.readVoltageRed())
+              // .then((red) => {
+              //   voltage_red = red;
+              //   $('#voltage_red').val(voltage_red);
+              // })
+              // .then(_ => ss.readCurrentYellow())
+              // .then((yellow) => {
+              //   current_yellow = yellow;
+              //   $('#current_yellow').val(current_yellow);
+              // })
+              // .then(_ => ss.readCurrentRed())
+              // .then((red) => {
+              //   current_red = red;
+              //   $('#current_red').val(current_red);
+              // })
+              // .then(_ => ss.readCurrentRealert())
+              // .then((realert) => {
+              //   current_realert = realert;
+              //   $("#current_realert").val(current_realert);
+              // })
+              // .then(_ => ss.readVoltageRealert())
+              // .then((realert) => {
+              //   voltage_realert = realert;
+              //   $("#voltage_realert").val(voltage_realert);
+              // })
+              .then(_ => ss.readBrightness())
+              .then((brightness) => {
+                $("#brightness").val(parseInt(100*brightness/255))
+              })
+              .then(_ => ss.readAlgorithmConfig())
+              .then(config => {
+                $('#algorithm_mode').val(config);
+              })
+              .then(_=> ss.readCrewChannel())
+              .then(channel => {
+                console.log("Crew Channel is "+channel);
+                $('#crew_channel').val(channel);
+              })
+              .then(_=> ss.readFirmwareVersion())
+              .then((fw_version) => {
+                $('#fw_version').text("Firmware: v"+fw_version)
+              })
+              .then(_=> ss.readLowFilterThreshold())
+              .then((value) =>{
+                $('#low_filter_threshold').val(value);
+              })
+              .then(_=> ss.readLowFilterAlpha())
+              .then((value) =>{
+                $('#low_filter_alpha').val(value);
+              })
+              .then(_=> ss.readDeltaFilterThreshold())
+              .then((value) =>{
+                $('#delta_filter_threshold').val(value);
+              })
+              .then(_=> ss.readDeltaFilterAlpha())
+              .then((value) =>{
+                $('#delta_filter_alpha').val(value);
+              })
+              .then(_=> ss.readSmartAdaptiveConfig(true))
+              .then((config) =>{
+                apply_smart_adaptive_config(true, config);
+              })
+              .then(_=> ss.readSmartAdaptiveConfig(false))
+              .then((config) =>{
+                apply_smart_adaptive_config(false, config);
+              })
+              .then(_=> ss.readSmartAdaptiveEnabled(true))
+              .then((config) =>{
+                $('#smart_adaptive_enabled').val(config["enabled"] ? 1 : 0)
+                // $('#smart_adaptive_current_enabled').val(config["current"] ? 1 : 0)
+              })
+              .then(_=> ss.readFallConfig())
+              .then((config) => {
+                $('#fall_detection_duration').val(config["duration"]);
+                $('#fall_detection_threshold').val(config["threshold"]);
+              })
+              .then(_ => {
+                // console.log("done");
+                connected = true;
+                $(".connected").show();
+                $(".disconnected").hide();
+                $('.working').hide();
+                // console.log(red,yellow);
+              })
+              .catch(error => { console.log(error); alert(error) });
+        });
+        
+    })
+  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>SixthSense Config</title>
+</head>
+<body>
+  <div class="container">
+    <div class="row">
+      <h1>Sixth Sense Configurator</h1>
+    </div>
+    <div class="row">
+      <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>
+      <a href="#" id="disconnect" class="connected btn btn-primary">Disconnect</a>
+    </div>
+    <div class="row working">
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <div class="row disconnected">
+        <h3>Disconnected</h3>
+    </div>
+    <div class="connected">
+        <div class="row">
+          <h3>Connected!</h3>
+        </div>
+        <div class="row">
+            <h5 id="fw_version"></h5>
+        </div>
+        <h3>Controls</h3>
+        <div class="row">
+            <a href="#" class="btn btn-primary" id="unlock_button">Unlock Sixth Sense</a>
+            <a href="#" class="btn btn-primary" id="find_me_button">Find Me</a>
+        </div>
+        <div class="row">
+            <form>
+                <label>Serial Number</label>
+                <input type="text" id="serial_number"/>
+                <a href="#" id="btn_serial_number" class="btn btn-primary">Write Serial Number</a>
+            </form>
+        </div>
+        <div class="row">
+          <h4>Live Readings</h4>
+        </div>
+        <div class="row">
+            
+          <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                  <div class="card-subtitle">Voltage</div>
+                  <h4 id="field_voltage" class="card-title">---</h4>
+                  <h5 id="avg_voltage"></h5>
+                  <h5 id="med_voltage"></h5>
+                  <h5 id="minmax_voltage"></h5>
+                  <a href="#" id="read_voltage" class="btn btn-primary">Read Voltage</a>
+                </div>
+                
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                  <div class="card-subtitle">Current</div>
+                  <h4 id="field_current" class="card-title">---</h4>
+                  <h5 id="avg_current"></h5>
+                  <h5 id="med_current"></h5>
+                  <h5 id="minmax_current"></h5>
+                  <a href="#" id="read_current" class="btn btn-primary">Read Current</a>
+                </div>
+                
+            </div>
+            <a href="#" id="reset_stats" class="btn btn-primary">Reset Stats</a>
+          </div>
+        </div>
+        <div class="row">
+          <h4>Logging</h4>
+        </div>
+        <div class="row">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="logging_current" name="current"
+                     checked>
+              <label class="form-check-label" for="logging_current">Current</label>
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="logging_voltage" name="voltage"
+                     checked>
+              <label class="form-check-label" for="logging_voltage">Voltage</label>
+            </div>
+        </div>
+        <div class="row">
+          <button href="#" class="btn btn-primary" id="logging">Start Logging</button>
+        </div>
+        <div class="row" id="logging_download_parent" style="display:none;">
+            <label>Filename</label> <input id="logging_download_filename" placeholder="ss_log">
+          <a href="#" class="btn btn-primary" id="logging_download">Download Log</a>
+        </div>
+    
+    <div class="row">
+          <h4>Algorithm Configuration</h4>
+      </div>
+      <div class="row">
+          <h6>FW v0.6.0+ only</h6>
+        </div>
+        <div class="row">
+          <form id="algorithm_config">
+              <div class="form-group">
+                  <label for="algorithm_mode">Algorithm Mode</label>
+                  <select id="algorithm_mode">
+                    <option value="0">Voltage + Current Enabled</option>
+                    <option value="2">Only Voltage Enabled</option>
+                    <option value="3">Only Current Enabled</option>
+                  </select>
+              </div>
+              <div class="form-group">
+                <label for="voltage_range">Voltage Range</label>
+                <select id="voltage_range">
+                  <option value="0">Low Voltage</option>
+                  <option value="1">High Voltage</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sensitivity_voltage">Voltage Sensitivity</label>
+                <select id="sensitivity_voltage">
+                  <option value="0">Level 1 (Lowest)</option>
+                  <option value="1">Level 2</option>
+                  <option value="2">Level 3</option>
+                  <option value="3">Level 4 (Highest)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sensitivity_current">Current Sensitivity</label>
+                <select id="sensitivity_current">
+                  <option value="0">Level 1 (Lowest)</option>
+                  <option value="1">Level 2</option>
+                  <option value="2">Level 3</option>
+                  <option value="3">Level 4 (Highest)</option>
+                </select>
+              </div>
+              <button href="#" class="btn btn-primary" id="algorithm_config_submit">Apply Mode Changes</button>
+          </form>
+        </div>
+        <div class="row">
+          <h4>Voltage Thresholds - Low Voltage</h4>
+        </div>
+        <div class="row">
+          <form class="sensitivity_form" data-voltage-level="low" data-reading-type="voltage" id="low_voltage_thresholds">
+              <div class="form-group">
+                <h6>Sensitivity 1 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="1" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="1" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 2 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="2" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="2" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 3 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="3" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="3" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 4 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="4" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="4" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+                <button href="#" class="btn btn-primary" data-voltage-level="low" data-reading-type="voltage" >Apply LV Voltage Changes</button>
+            </form>
+          </div>
+        <div class="row">
+          <h4>Voltage Thresholds - High Voltage</h4>
+        </div>
+        <div class="row">
+          <form class="sensitivity_form" data-voltage-level="high" data-reading-type="voltage" id="high_voltage_thresholds">
+              <div class="form-group">
+                <h6>Sensitivity 1 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="1" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="1" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 2 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="2" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="2" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 3 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="3" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="3" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 4 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="4" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="4" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+                <button href="#" class="btn btn-primary" data-voltage-level="high" data-reading-type="voltage" >Apply HV Voltage Changes</button>
+            </form>
+          </div>
+        <div class="row">
+          <h4>Current Thresholds - Low Voltage</h4>
+        </div>
+        <div class="row">
+          <form class="sensitivity_form" data-voltage-level="low" data-reading-type="current" id="low_current_thresholds">
+              <div class="form-group">
+                <h6>Sensitivity 1 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="1" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="1" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 2 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="2" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="2" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 3 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="3" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="3" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 4 (LV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="4" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="4" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+                <button href="#" class="btn btn-primary" data-voltage-level="low" data-reading-type="current" >Apply LV Current Changes</button>
+            </form>
+          </div>
+        <div class="row">
+          <h4>Current Thresholds - High Voltage</h4>
+        </div>
+        <div class="row">
+          <form class="sensitivity_form" data-voltage-level="high" data-reading-type="current" id="high_current_thresholds">
+              <div class="form-group">
+                <h6>Sensitivity 1 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="1" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="1" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 2 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="2" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="2" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 3 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="3" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="3" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <h6>Sensitivity 4 (HV)</h6>
+                <div class="input-group">
+                  <label>Yellow</label>
+                  <input data-sensitivity="4" data-color="yellow"  placeholder="100"/>
+                </div>
+                <div class="input-group">
+                  <label>Red</label>
+                  <input data-sensitivity="4" data-color="red"  placeholder="100"/>
+                </div>
+              </div>
+                <button href="#" class="btn btn-primary" data-voltage-level="high" data-reading-type="current" >Apply HV Current Changes</button>
+            </form>
+          </div>
+        <div class="row">
+            <h4>Fall Detection Config</h4>
+            <h5>Note: This value is not saved across power cycle</h5>
+        </div>
+        <div class="row">
+            <form id="fall_detection">
+                <div class="form-group">
+                    <label for="fall_detection_threshold">Threshold</label>
+                    <input id="fall_detection_threshold"/>
+                    <p>A lower threshold makes the fall less likely to be detected. If it is too big, you are more likely to get false alarms. I have been using ~20</p>
+                </div>
+                <div class="form-group">
+                    <label for="fall_detection_duration">Duration</label>
+                    <input id="fall_detection_duration"/>
+                    <p>The duration that we must be in freefall in hundredths of 1s. (20 = 0.2s). This probably needs to be smaller than you expect</p>
+                </div>
+                <button href="#" class="btn btn-primary" id="fall_detection_submit">Apply Fall Detection</button>
+            </form>
+        </div>
+        <div class="row">
+            <h4>UX Settings</h4>
+        </div>
+        <div class="row">
+          <h6>FW v0.6.0+ only</h6>
+        </div>
+        <div class="row">
+            <form id="ux_values">
+              <div class="form-group">
+                  <label for="brightness">Brightness (0-100%)</label>
+                  <input id="brightness" placeholder="100%"/>
+                  <p>This controls the brightness of the LEDs when you are inside or in a dark environment. When you are outside, the unit will use 100% brightness.</p>
+              </div>
+              <button href="#" class="btn btn-primary" id="ux_values_submit">Apply UX Changes</button>
+          </form>
+      </div>
+      <div class="row">
+        <h4>Smart Adaptive Configuration</h4>
+      </div>
+      <div class="row">
+        <h5>Enabled/Disabled</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_enabled_form">
+            <div class="form-group">
+                <label for="smart_adaptive_enabled">Voltage and Current</label>
+                <select id="smart_adaptive_enabled">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </select>
+            </div>
+            <button href="#" class="btn btn-primary" id="smart_adaptive_enabled_submit">Apply Enable/Disable</button>
+        </form>
+      </div>
+      <div class="row">
+        <h5>Voltage Parameters</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_voltage" class="smart_adaptive" data-adaptive-type="voltage">
+            
+            <div class="form-group">
+                <label>Slow Filter Alpha</label>
+                <input data-param="slow_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Fast Filter Alpha</label>
+                <input data-param="fast_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Entering Threshold (percent)</label>
+                <input data-param="entering_threshold" data-type="int"/>
+                <label>Entering Additional Delay (milliseconds)</label>
+                <input data-param="entering_time_delay" data-type="int"/>
+            </div>
+            <div class="form-group">
+                <label>Exiting Threshold (percent)</label>
+                <input data-param="exiting_threshold" data-type="int"/>
+                <label>Exiting Additional Delay (milliseconds)</label>
+                <input data-param="exiting_time_delay" data-type="int"/>
+            </div>
+            <a href="#" class="btn btn-primary" data-adaptive-type="voltage">Send Voltage Smart Adaptive</a>
+        </form>
+      </div>
+      <div class="row">
+        <h5>Current Parameters</h5>
+      </div>
+      <div class="row">
+        <form id="smart_adaptive_current" class="smart_adaptive" data-adaptive-type="current">
+            <div class="form-group">
+                <label>Slow Filter Alpha</label>
+                <input data-param="slow_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Fast Filter Alpha</label>
+                <input data-param="fast_alpha" data-type="float"/>
+            </div>
+            <div class="form-group">
+                <label>Entering Threshold (units)</label>
+                <input data-param="entering_threshold" data-type="int"/>
+                <label>Entering Additional Delay (milliseconds)</label>
+                <input data-param="entering_time_delay" data-type="int"/>
+            </div>
+            <div class="form-group">
+                <label>Exiting Threshold (units)</label>
+                <input data-param="exiting_threshold" data-type="int"/>
+                <label>Exiting Additional Delay (milliseconds)</label>
+                <input data-param="exiting_time_delay" data-type="int"/>
+            </div>
+            <a href="#" class="btn btn-primary" data-adaptive-type="current">Send Current Smart Adaptive</a>
+        </form>
+      </div>
+      <div class="row">
+            <h4>Crew Mode Settings</h4>
+        </div>
+        <div class="row">
+          <h6>FW v0.7.0+ only</h6>
+        </div>
+        <div class="row">
+            <form id="crew_mode">
+              <div class="form-group">
+                  <label for="crew_channel">Crew Channel</label>
+                  <select id="crew_channel">
+                    <option value="0">Yellow (Default) </option>
+                    <option value="1">Orange</option>
+                    <option value="2">Blue</option>
+                    <option value="3">Pink</option>
+                    <option value="15">DISABLED (Red)</option>
+                  </select>
+                  <p>Units will default to "Yellow", so at first everyone will be on the Yellow channel.</p>
+              </div>
+              <button href="#" class="btn btn-primary" id="crew_mode_submit">Apply Crew Mode Changes</button>
+          </form>
+      </div>
+        <div class="row">
+          <h4>Low Voltage Filtering</h4>
+          </div>
+          <div class="row">
+            <h6>FW v0.10.0+ only</h6>
+          </div>
+          <div class="row">
+              <form id="low_filter">
+                <div class="form-group">
+                    <label for="low_filter_threshold">Low Threshold</label>
+                    <input id="low_filter_threshold" placeholder="500"/>
+                    <label for="low_filter_alpha">Low Alpha</label>
+                    <input id="low_filter_alpha" placeholder="0.90"/>
+                    <p>Alpha = 0.9 means trust the old average 90% and the new data 10%, so it will be slow to react</p>
+                    <p>We will use this alpha whenever the new reading is less than the threshold</p>
+                    <p>This is used to reduce the noise we have at low field strengths.</p>
+                </div>
+                <div class="form-group">
+                  <label for="delta_filter_threshold">Delta Threshold</label>
+                  <input id="delta_filter_threshold" placeholder="75"/>
+                  <label for="delta_filter_alpha">Delta Alpha</label>
+                  <input id="delta_filter_alpha" placeholder="0.25"/>
+                  <p>Alpha = 0.25 means trust the old average 25% and the new data 75%, so it will be fast</p>
+                  <p>We will use this alpha whenever the difference between the old average and the new reading is greater than this threshold</p>
+                  <p>This is used to quickly react when there is a big change in the field (growing quickly or shrinking quickly)</p>
+                </div>
+                <button href="#" class="btn btn-primary" id="filter_submit">Apply Filter Changes</button>
+            </form>
+          </div>
+          <div class="row">
+            <h4>Production Self-Testing</h4>
+            </div>
+            <div class="row">
+                <a href="#" class="btn btn-primary" id="prod_test">Fetch Prod Test Values</a>
+            </div>
+            <div class="row">
+                <dl>
+                    <dt>Raw</dt><dd id="prod_test_raw"></dd>
+                    <dt>Ambient Light(v):</dt><dd id="amb_light"></dd>
+                    <dt>Battery Voltage(v):</dt><dd id="batt_voltage"></dd>
+                    <dt>Battery Charging:</dt><dd id="batt_charge"></dd>
+                    <dt>Battery Level:</dt><dd id="batt_level"></dd>
+                    <dt>Acc Test Ran</dt><dd id="acc_test_ran"></dd>
+                    <dt>Acc Test Result X</dt><dd id="acc_test_res_x"></dd>
+                    <dt>Acc Test Result Y</dt><dd id="acc_test_res_y"></dd>
+                    <dt>Acc Test Result Z</dt><dd id="acc_test_res_z"></dd>
+                    <dt>Acc Test Result Int</dt><dd id="acc_test_res_int"></dd>
+
+
+                </dl>
+            </div>
+          <div>
+            <div class="row">
+              <h4>Color Testing</h4>
+            </div>
+              <div class="row">
+              <form id="color">
+                <div class="form-group" class="color_picker">
+                <label for="color_0">LED 1</label>
+                <input id="color_0" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_0" placeholder="FF0000">
+              </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 2</label>
+                <input id="color_1" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_1" placeholder="FF0000">
+                </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 3</label>
+                <input id="color_2" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_2" placeholder="FF0000">
+                </div>
+              <div class="form-group" class="color_picker">
+                <label for="color_0">LED 4</label>
+                <input id="color_3" type="color" value="#ff0000">
+                <input type="text" class="color_picker_hex" data-for="color_3" placeholder="FF0000">
+                </div>
+                <div class="form-group">
+                    <label>On Time(ms)</label>
+                    <input id="led_on_time" placeholder="30" value="30"/>
+                    <label>Off Time(ms)</label>
+                    <input id="led_off_time" placeholder="5000" value="5000"/>
+                    <p>Set Off Time to 0 for the light to remain on constantly</p>
+                </div>
+                <button href="#" class="btn btn-primary" id="color_submit">Apply Color Changes</button>
+                <button href="#" class="btn btn-primary" id="color_revert_submit">Reset Color Changes</button>
+              </form>
+            </div>
+          </div>
+          <div>
+            <div class="row">
+              <h4>Sounds</h4>
+            </div>
+            <form id="sound">
+              <p>Each row should be "frequency,duration" with frequency in Hz and duration in milliseconds.</p>
+              <p> For a pause with no sound, use 0 Hz. There is a maximum of 250 tones at this time. The sound will be played when you press the button on the Sixth Sense</p>
+              <div class="form-group">
+              <textarea id="sound_content" placeholder="3000,100&#10;4000,200"></textarea>
+            </div>
+              <button href="#" class="btn btn-primary" id="sound_submit">Apply Sound Changes</button>
+              <p>Instead of frequencies, you can also use these "Notes" in the text box.
+                "B0":31
+"C1":33Hz
+"CS1":35Hz
+"D1":37Hz
+"DS1":39
+"E1":41
+"F1":44
+"FS1":46
+"G1":49
+"GS1":52
+"A1":55
+"AS1":58
+"B1":62
+"C2":65
+"CS2":69
+"D2":73
+"DS2":78
+"E2":82
+"F2":87
+"FS2":93
+"G2":98
+"GS2":104
+"A2":110
+"AS2":117
+"B2":123
+"C3":131
+"CS3":139
+"D3":147
+"DS3":156
+"E3":165
+"F3":175
+"FS3":185
+"G3":196
+"GS3":208
+"A3":220
+"AS3":233
+"B3":247
+"C4":262
+"CS4":277
+"D4":294
+"DS4":311
+"E4":330
+"F4":349
+"FS4":370
+"G4":392
+"GS4":415
+"A4":440
+"AS4":466
+"B4":494
+"C5":523
+"CS5":554
+"D5":587
+"DS5":622
+"E5":659
+"F5":698
+"FS5":740
+"G5":784
+"GS5":831
+"A5":880
+"AS5":932
+"B5":988
+"C6":1047
+"CS6":1109
+"D6":1175
+"DS6":1245
+"E6":1319
+"F6":1397
+"FS6":1480
+"G6":1568
+"GS6":1661
+"A6":1760
+"AS6":1865
+"B6":1976
+"C7":2093
+"CS7":2217
+"D7":2349
+"DS7":2489
+"E7":2637
+"F7":2794
+"FS7":2960
+"G7":3136
+"GS7":3322
+"A7":3520
+"AS7":3729
+"B7":3951
+"C8":4186
+"CS8":4435
+"D8":4699
+"DS8":4978</p>
+<p>For example, <pre>E7,200
+0,100
+E7,100
+0,100
+C7,100
+E7,100
+0,100
+G7,100
+0,300
+G6,100
+0,300
+C7,100
+0,200
+G6,100
+0,200
+E6,100
+0,200
+A6,100
+0,100
+B6,100
+0,100
+AS6,100
+A6,100
+0,100</pre> will give you Mario.</p>
+            </form>
+          </div>
+      </div>
+  </div>
+<!-- <div id="color_picker_template">
+  <select class="color_shortcut">
+    <option value="#ff0000">Red</option>
+    <option value="#00FF00">Green</option>
+    <option value="#0000ff">Blue</option>
+    <option value="#FF00FF">Purple</option>
+  </select>
+</div> -->
+</body>
+</html>

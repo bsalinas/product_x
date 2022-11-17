@@ -481,14 +481,22 @@ class ProductX {
     // })
     .then(value => {
         let view = new Uint32Array(value.buffer);
-        return view[0];
+        return {
+            "algorithm_config": view[0] & 0xFF,
+            "fall_detection_enabled": (view[0] & 0x00000100) ? 1 : 0
+        }
     })
   }
 
 
   writeAlgorithmConfig(value) {
+
     let data = new Uint32Array(1);
-    data[0] = value;
+    data[0] = value["algorithm_config"];
+    if(value["fall_detection_enabled"] == 1)
+    {
+        data[0] = (data[0] | 0x00000100)
+    }
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
     .then(characteristic => characteristic.writeValue(data));
@@ -1331,8 +1339,9 @@ logging_notification_handler(event)
             let range = parseInt($("#voltage_range").val());
             let sensitivity_voltage = parseInt($("#sensitivity_voltage").val());
             let sensitivity_current = parseInt($("#sensitivity_current").val());
+            let fall_detection_enabled = parseInt($("#fall_detection_enabled").val());
             let sensitivity = {"voltage":sensitivity_voltage, "current":sensitivity_current}
-            ss.writeAlgorithmConfig(new_mode)
+            ss.writeAlgorithmConfig({"algorithm_config":new_mode, "fall_detection_enabled":fall_detection_enabled})
             .then(_=> ss.writeVoltageRange(range))
             .then(_=> ss.writeSensitivityLevel(sensitivity))
             .then(_ => {
@@ -1664,7 +1673,8 @@ logging_notification_handler(event)
               })
               .then(_ => ss.readAlgorithmConfig())
               .then(config => {
-                $('#algorithm_mode').val(config);
+                $('#algorithm_mode').val(config["algorithm_config"]);
+                $('#fall_detection_enabled').val(config["fall_detection_enabled"])
               })
               .then(_=> ss.readCrewChannel())
               .then(channel => {
@@ -1859,6 +1869,13 @@ logging_notification_handler(event)
                   <option value="1">Level 2</option>
                   <option value="2">Level 3</option>
                   <option value="3">Level 4 (Highest)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="fall_detection_enabled">Fall Detection</label>
+                <select id="fall_detection_enabled">
+                  <option value="0">Disabled</option>
+                  <option value="1">Enabled</option>
                 </select>
               </div>
               <button href="#" class="btn btn-primary" id="algorithm_config_submit">Apply Mode Changes</button>

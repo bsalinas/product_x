@@ -308,8 +308,29 @@ class ProductX {
             "battery_voltage":floatView[1],
             "battery_charge_raw":byteView[8],
             "battery_level":byteView[9],
-            "acc_test_raw":byteView[10]
+            "acc_test_raw":byteView[10],
+            "acc_mag":-9999999.0,
+            "acc_x_avg":-9999999.0,
+            "acc_y_avg":-9999999.0,
+            "acc_z_avg":-9999999.0,
+            "acc_x_delta":-9999999.0,
+            "acc_y_delta":-9999999.0,
+            "acc_z_delta":-9999999.0
+
         };
+        if(value.buffer.byteLength > 11)
+        {
+            let intView = new Int16Array(value.buffer);
+            to_ret["acc_x_avg"] = intView[6]
+            to_ret["acc_y_avg"] = intView[7]
+            to_ret["acc_z_avg"] = intView[8]
+            to_ret["acc_x_delta"] = intView[9]
+            to_ret["acc_y_delta"] = intView[10]
+            to_ret["acc_z_delta"] = intView[11]
+            to_ret["acc_mag"] = Math.sqrt(to_ret["acc_x_avg"]*to_ret["acc_x_avg"] + to_ret["acc_y_avg"]*to_ret["acc_y_avg"]+ to_ret["acc_z_avg"]*to_ret["acc_z_avg"])
+            // to_ret["acc_mag"] = Math.sqrt(uintView[3])
+            console.log(to_ret["acc_mag"])
+        }
         let batt_chg_raw = to_ret["battery_charge_raw"]
         if(batt_chg_raw == 0)
         {
@@ -1567,8 +1588,13 @@ logging_notification_handler(event)
                 $('#amb_light').text(status["ambient_light"])
                 $('#batt_voltage').text(status["battery_voltage"])
                 $('#batt_level').text(status["battery_level"]+"/4")
+                $('#acc_mag').text(status["acc_mag"].toFixed(1)+"(desired is near 1000)")
+                $("#acc_x").text(status["acc_x_avg"]+"(delta="+status["acc_x_delta"]+")")
+                $("#acc_y").text(status["acc_y_avg"]+"(delta="+status["acc_y_delta"]+")")
+                $("#acc_z").text(status["acc_z_avg"]+"(delta="+status["acc_z_delta"]+")")
                 $('#batt_charge').text(status["battery_charge"]+"("+status["battery_charge_raw"]+")")
                 $('#acc_test_ran').text(status["acc_test"]["has_run"] ? "YES" : "NO")
+                $('#acc_copy').text(status["acc_x_avg"]+","+status["acc_y_avg"]+","+status["acc_z_avg"]+","+status["acc_mag"].toFixed(1)+","+status["acc_x_delta"]+","+status["acc_y_delta"]+","+status["acc_z_delta"])
                 if(status["acc_test"]["has_run"])
                 {
                     $('#acc_test_res_x').text(status["acc_test"]["result_x"] ? "PASS" :"FAIL")
@@ -2259,15 +2285,21 @@ logging_notification_handler(event)
             <div class="row">
                 <dl>
                     <dt>Raw</dt><dd id="prod_test_raw"></dd>
+                    <dt>Copy Acc Results</dt><dd id="acc_copy"></dd>
                     <dt>Ambient Light(v):</dt><dd id="amb_light"></dd>
                     <dt>Battery Voltage(v):</dt><dd id="batt_voltage"></dd>
                     <dt>Battery Charging:</dt><dd id="batt_charge"></dd>
                     <dt>Battery Level:</dt><dd id="batt_level"></dd>
+                    <dt>Acc Magnitude:</dt><dd id="acc_mag"></dd>
+                    <dt>Acc X:</dt><dd id="acc_x"></dd>
+                    <dt>Acc Y:</dt><dd id="acc_y"></dd>
+                    <dt>Acc Z:</dt><dd id="acc_z"></dd>
                     <dt>Acc Test Ran</dt><dd id="acc_test_ran"></dd>
                     <dt>Acc Test Result X</dt><dd id="acc_test_res_x"></dd>
                     <dt>Acc Test Result Y</dt><dd id="acc_test_res_y"></dd>
                     <dt>Acc Test Result Z</dt><dd id="acc_test_res_z"></dd>
                     <dt>Acc Test Result Int</dt><dd id="acc_test_res_int"></dd>
+                    
 
 
                 </dl>

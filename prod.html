@@ -1,0 +1,735 @@
+<html>
+<head>
+    
+    <!-- <script src=product_x.js></script> -->
+    <script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <script>
+    const ALERT_SERVICE = "00000000-1212-efde-1523-780f0000000d"
+const CURRENT_READING_CHAR = "00000001-1212-efde-1523-780f0000000d"
+const CURRENT_REALERT_CHAR = "00000002-1212-efde-1523-780f0000000d"
+const CURRENT_YELLOW_CHAR = "00000003-1212-efde-1523-780f0000000d"
+const CURRENT_RED_CHAR = "00000004-1212-efde-1523-780f0000000d"
+const VOLTAGE_READING_CHAR = "00000005-1212-efde-1523-780f0000000d"
+const VOLTAGE_REALERT_CHAR = "00000006-1212-efde-1523-780f0000000d" 
+const VOLTAGE_YELLOW_CHAR = "00000007-1212-efde-1523-780f0000000d"
+const VOLTAGE_RED_CHAR = "00000008-1212-efde-1523-780f0000000d"
+
+const VOLTAGE_MODE_RANGE = "00000010-1212-efde-1523-780f0000000d"
+const CURRENT_LOW_THRESHOLDS = "00000011-1212-efde-1523-780f0000000d"
+const CURRENT_HIGH_THRESHOLDS = "00000012-1212-efde-1523-780f0000000d"
+const SENSITIVITY_LEVEL = "00000013-1212-efde-1523-780f0000000d"
+const VOLTAGE_LOW_THRESHOLDS = "00000014-1212-efde-1523-780f0000000d"
+const VOLTAGE_HIGH_THRESHOLDS = "00000015-1212-efde-1523-780f0000000d"
+
+const SMART_ADAPTIVE_VOLTAGE = "00000016-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_CURRENT = "00000017-1212-efde-1523-780f0000000d"
+
+const LOGGING_CONFIG = "00000018-1212-efde-1523-780f0000000d"
+const FIND_ME = "00000019-1212-efde-1523-780f0000000d"
+const SERIAL_NUMBER = "0000001a-1212-efde-1523-780f0000000d"
+const UNLOCK = "0000001b-1212-efde-1523-780f0000000d"
+const FALL_CONFIG = "0000001c-1212-efde-1523-780f0000000d"
+const SMART_ADAPTIVE_ENABLED = "0000001d-1212-efde-1523-780f0000000d"
+const PROD_TEST_STATUS = "0000001f-1212-efde-1523-780f0000000d"
+
+const ALGORITHM_CONFIG = "00000009-1212-efde-1523-780f0000000d"
+const CREW_CHANNEL = "0000000a-1212-efde-1523-780f0000000d"
+const CREW_MODE_FORCED_ENABLED = "0000000b-1212-efde-1523-780f0000000d"
+
+const LOW_FILTER_THRESHOLD = "0000000c-1212-efde-1523-780f0000000d"
+const LOW_FILTER_ALPHA = "0000000d-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_THRESHOLD = "0000000e-1212-efde-1523-780f0000000d"
+const DELTA_FILTER_ALPHA = "0000000f-1212-efde-1523-780f0000000d"
+
+const UI_SERVICE = "00000000-1212-efde-1523-780d000000f0"
+const UI_BRIGHTNESS_CHAR = "00000001-1212-efde-1523-780d000000f0"
+const UI_COLOR_CHAR = "00000002-1212-efde-1523-780d000000f0"
+const UI_SOUND_CHAR = "00000003-1212-efde-1523-780d000000f0"
+
+const NRF_NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+
+const NRF_NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+const NRF_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+
+
+const DEVICE_INFORMATION_SERVICE = "0000180a-0000-1000-8000-00805f9b34fb"
+const FW_VERSION = "00002a26-0000-1000-8000-00805f9b34fb"
+let trailing_current = [];
+let trailing_voltage = [];
+let trailing_voltage_idx = 0;
+let trailing_current_idx = 0;
+let TRAILING_COUNT = 40;
+class ProductX {
+
+  constructor(disconnect_cb) {
+    this.device = null;
+    this.disconnect_cb = disconnect_cb;
+    this.onDisconnected = this.onDisconnected.bind(this);
+  }
+  
+  request() {
+    let options = {
+      "filters": [{ 
+        "name": "SixthSense"
+      },{ 
+        "name": "6S"
+      }],
+      "optionalServices": [ALERT_SERVICE, DEVICE_INFORMATION_SERVICE, UI_SERVICE, NRF_NUS_SERVICE]
+    };
+    return navigator.bluetooth.requestDevice(options)
+    .then(device => {
+      this.device = device;
+      this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
+    })
+  }
+  
+  connect() {
+    if (!this.device) {
+      return Promise.reject('Device is not connected.');
+    }
+    return this.device.gatt.connect();
+}
+  
+  readProdTestStatus()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(PROD_TEST_STATUS))
+    .then(characteristic => characteristic.readValue())
+    .then(value =>{
+        let floatView = new Float32Array(value.buffer.slice(0,8));
+        let byteView = new Uint8Array(value.buffer);
+        let to_ret = {
+            "raw":value.buffer,
+            "ambient_light":floatView[0],
+            "battery_voltage":floatView[1],
+            "battery_charge_raw":byteView[8],
+            "battery_level":byteView[9],
+            "acc_test_raw":byteView[10],
+            "acc_mag":-9999999.0,
+            "acc_x_avg":-9999999.0,
+            "acc_y_avg":-9999999.0,
+            "acc_z_avg":-9999999.0,
+            "acc_x_delta":-9999999.0,
+            "acc_y_delta":-9999999.0,
+            "acc_z_delta":-9999999.0
+
+        };
+        if(value.buffer.byteLength > 11)
+        {
+            let intView = new Int16Array(value.buffer);
+            to_ret["acc_x_avg"] = intView[6]
+            to_ret["acc_y_avg"] = intView[7]
+            to_ret["acc_z_avg"] = intView[8]
+            to_ret["acc_x_delta"] = intView[9]
+            to_ret["acc_y_delta"] = intView[10]
+            to_ret["acc_z_delta"] = intView[11]
+            to_ret["acc_mag"] = Math.sqrt(to_ret["acc_x_avg"]*to_ret["acc_x_avg"] + to_ret["acc_y_avg"]*to_ret["acc_y_avg"]+ to_ret["acc_z_avg"]*to_ret["acc_z_avg"])
+            // to_ret["acc_mag"] = Math.sqrt(uintView[3])
+            console.log(to_ret["acc_mag"])
+        }
+        let batt_chg_raw = to_ret["battery_charge_raw"]
+        if(batt_chg_raw == 0)
+        {
+            to_ret["battery_charge"] = "INVALID"
+        } else if(batt_chg_raw == 1)
+        {
+            to_ret["battery_charge"] = "USB_DISCONNECTED"
+        } 
+        else if(batt_chg_raw == 2)
+        {
+            to_ret["battery_charge"] = "CHARGING"
+        }  else if(batt_chg_raw == 3)
+        {
+            to_ret["battery_charge"] = "CHARGING_COMPLETE"
+        } 
+        else if(batt_chg_raw == 4)
+        {
+            to_ret["battery_charge"] = "BATTERY_FAULT"
+        }
+        let acc_test_raw = to_ret["acc_test_raw"]
+        to_ret["acc_test"] = {
+            "has_run": (acc_test_raw & 0b00001) ? true : false,
+            "result_x": (acc_test_raw & 0b00010) ? true : false,
+            "result_y": (acc_test_raw & 0b00100) ? true : false,
+            "result_z": (acc_test_raw & 0b01000) ? true : false,
+            "result_int": (acc_test_raw & 0b10000) ? true : false,
+        }
+        return to_ret;
+
+    });
+  }
+
+  
+  readAlgorithmConfig() {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == ALGORITHM_CONFIG)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        return {
+            "algorithm_config": view[0] & 0xFF,
+            "fall_detection_enabled": (view[0] & 0x00000100) ? 1 : 0
+        }
+    })
+  }
+
+
+  writeAlgorithmConfig(value) {
+
+    let data = new Uint32Array(1);
+    data[0] = value["algorithm_config"];
+    if(value["fall_detection_enabled"] == 1)
+    {
+        data[0] = (data[0] | 0x00000100)
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(ALGORITHM_CONFIG))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+
+  readFirmwareVersion(){
+    return this.device.gatt.getPrimaryService(DEVICE_INFORMATION_SERVICE)
+    .then(service => service.getCharacteristic(FW_VERSION))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        console.log(value)
+        let enc = new TextDecoder("utf-8");
+        let arr = new Uint8Array(value.buffer);
+        let version = enc.decode(arr);
+        console.log(version)
+        return version;
+    })
+  }
+  readVoltageRange(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return view[0];
+    })
+  }
+  writeVoltageRange(value){
+    let data = new Uint8Array(1);
+    data[0] = value;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(VOLTAGE_MODE_RANGE))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readSensitivityLevel(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view = new Uint8Array(value.buffer);
+        return {"voltage":view[0], "current":view[1]}
+    })
+  }
+  readSerialNumber(){
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == SERIAL_NUMBER)
+            {
+                return ch.readValue()
+                .then(value => {
+                    let view = new Uint32Array(value.buffer);
+                    return view[1];
+                });
+            }
+        }
+        return 0
+    })
+  }
+  writeSerialNumber(number)
+  {
+    let data = new Uint32Array(2);
+    // data[0] = 0xAABBCCDD;
+    data[0] = 0xDDCCBBAA;
+    data[1] = number;
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SERIAL_NUMBER))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  writeSensitivityLevel(sensitivity){
+    let data = new Uint8Array(2);
+    data[0] = sensitivity["voltage"];
+    data[1] = sensitivity["current"];
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SENSITIVITY_LEVEL))
+    .then(characteristic => characteristic.writeValue(data));
+  }
+  readSmartAdaptiveEnabled()
+  {
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.readValue())
+    .then(value => {
+        let view8 = new Uint8Array(value.buffer);
+        let to_ret = {
+            "enabled":view8[0] == 1 ? true : false,
+            // "voltage":view8[0] == 1 ? true : false
+        }
+        console.log(to_ret);
+        return to_ret;
+    })
+  }
+  writeSmartAdaptiveEnabled(config)
+  {
+    let buffer = new ArrayBuffer(1);
+    let view = new DataView(buffer);
+    view.setUint8(0,config["enabled"] ? 1 : 0)
+    // view.setUint8(1,config["voltage"] ? 1 : 0)
+    let view8 = new Uint8Array(buffer);
+    for(let i=0; i<view8.length; i++)
+    {
+        console.log("d["+i+"]="+view8[i].toString(16));
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service => service.getCharacteristic(SMART_ADAPTIVE_ENABLED))
+    .then(characteristic => characteristic.writeValue(view8));
+  }
+  findMe()
+  {
+    let uint8 = new Uint8Array([1])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(FIND_ME))
+        .then(characteristic =>characteristic.writeValue(uint8))
+  }
+  promptForUnlock()
+  {
+    let uint8 = new Uint8Array([1])
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(UNLOCK))
+        .then(characteristic =>characteristic.writeValue(uint8))
+  }
+  disconnect() {
+    if (!this.device) {
+      return Promise.reject('Device is not connected.');
+    }
+    return this.device.gatt.disconnect();
+  }
+
+  onDisconnected() {
+    console.log('Device is disconnected.');
+    if(this.disconnect_cb)
+    {
+        this.disconnect_cb();
+    }
+  }
+}
+
+
+  </script>
+  <style>
+    .stat_parent
+    {
+        background:#f2f2f2;
+        max-width:150px;
+        border-radius:10px;
+        padding:10px;
+        margin:10px;
+        display:inline-block;
+
+    }
+    .check_for_results
+    {
+      margin:10px;
+      padding:15px;
+      background-color:red;
+      color:white;
+    }
+    .check_for_results.checking{
+      background-color: grey;
+    }
+    .check_for_results.ready {
+      background-color:green;
+      color:white;
+    }
+    .card-body h5
+    {
+        color: #888;
+    }
+    .card-body h5.done
+    {
+        color: black;
+    }
+    .stat_parent .stat_value
+    {
+        font-size:2em;
+    }
+    .stat_parent .stat_label
+    {
+        font-size:1em;
+    }
+    textarea{
+      width: 100%;
+      min-height: 10em;
+    }
+    label
+    {
+      font-weight: 800;
+    }
+  </style>
+  <script>
+    $(document).ready(function(e){
+
+        // $(".color_picker").append($("#color_picker_template").html())
+        // $("#color_picker_template").hide();
+        function onDisconnect(e)
+        {
+          console.log("Disconnected!");
+            $(".connected").hide();
+            $('.working').hide();
+            $(".disconnected").show();
+            connected = false;
+        }
+        let connected = false;
+        let ss = new ProductX(onDisconnect);
+        $(".connected").hide();
+        $(".working").hide();
+        $(".disconnected").show();
+        $('#find_me_button').click(function(evt){
+            evt.preventDefault();
+            ss.findMe()
+            .then(_=>{
+                alert("Success. Device should be blinking")
+            })
+            .catch(error =>{
+                alert(error)
+            })
+        })
+        $('.unlock_button').click(function(evt){
+          evt.preventDefault();
+          ss.promptForUnlock()
+          .then(_=>{
+            alert("Press button on device.")
+          }).catch(error=>{
+            alert(error)
+          });
+        })
+        $("#disconnect").click(function(e){
+            if(connected)
+            {
+              $(".connected").hide();
+                $(".working").show();
+                ss.disconnect()
+                
+                // $(".disconnected").show();
+                // connected = false;
+            }
+        });
+        function check_for_shipping()
+        {
+          $('#check_for_shipping_result').addClass("checking")
+          $('#check_for_shipping_result').removeClass("ready")
+          $('#check_for_shipping_result').text("Checking...")
+          let status_ready = true
+          let status_results = ["Unit NOT READY for Shipping"]
+          return ss.readAlgorithmConfig()
+          .then(config=>{
+            console.log(config)
+            if(config["algorithm_config"] != 0)
+            {
+              status_ready = false
+              status_results.push("Algorithm Config is wrong("+config["algorithm_config"]+")")
+            }
+            if(config["fall_detection_enabled"] != false)
+            {
+              status_ready = false
+              status_results.push("Fall Detection is wrong("+config["fall_detection_enabled"]+")")
+            }
+          }).then(_=> ss.readSensitivityLevel())
+          .then(sensitivity =>{
+            console.log(sensitivity)
+            if(sensitivity["voltage"] != 3)
+            {
+              status_ready = false;
+              status_results.push("Voltage Sensitivity is wrong("+sensitivity["voltage"]+")")
+            }
+            if(sensitivity["current"] != 3)
+            {
+              status_ready = false;
+              status_results.push("Current Sensitivity is wrong("+sensitivity["current"]+")")
+            }
+          })
+          .then(_=> ss.readFirmwareVersion())
+          .then((fw_version) => {
+            if(fw_version != "1.5.0")
+            {
+              status_ready = false;
+              status_results.push("Firmware Versions is wrong("+fw_version+")")
+            }
+          })
+          .then(_=>ss.readSerialNumber())
+          .then((serial_number) =>{
+            if(serial_number == 0xFFFFFFFF)
+            {
+                status_ready = false;
+                status_results.push("Serial Number is Not Programmed")
+            }
+          })
+          .then(_=>{
+            if(status_ready)
+            {
+              $("#check_for_shipping_result").addClass("ready")
+              $("#check_for_shipping_result").removeClass("checking")
+              $("#check_for_shipping_result").text("Unit Ready for Shipping")
+            } else
+            {
+              $("#check_for_shipping_result").removeClass("ready")
+              $("#check_for_shipping_result").removeClass("checking")
+              $("#check_for_shipping_result").html(status_results.join("<br/>"))
+            }
+          })
+          .catch(error=>alert(error));
+        }
+        $("#program_for_shipping").click(function(e){
+          e.preventDefault();
+          let sensitivity = {"voltage":3, "current":3}
+          let config = {"algorithm_config":0/*V+C*/, "fall_detection_enabled":false}
+          ss.writeAlgorithmConfig(config)
+          .then(_=>ss.writeSensitivityLevel(sensitivity))
+          .then(_=>ss.writeSmartAdaptiveEnabled({"enabled":false}))
+          .then(_=>{
+            return check_for_test();
+            // $("#check_for_test").trigger("click")
+            // $("#check_for_shipping").trigger("click")
+            // alert("Wrote Configuration")
+          }).then(_=>{
+            return check_for_shipping();
+          })
+          .then(_=>alert("Wrote Configuration."))
+          .catch(error=> alert(error))
+          })
+        $("#check_for_shipping").click(function(e){
+          e.preventDefault();
+          check_for_shipping();
+        });  
+        $("#program_for_test").click(function(e){
+          e.preventDefault();
+          let sensitivity = {"voltage":3, "current":0}
+          let config = {"algorithm_config":0/*V+C*/, "fall_detection_enabled":true}
+          ss.writeAlgorithmConfig(config)
+          .then(_=>ss.writeSensitivityLevel(sensitivity))
+          .then(_=>ss.writeSmartAdaptiveEnabled({"enabled":false}))
+          .then(_=>{
+            return check_for_test();
+            // $("#check_for_test").trigger("click")
+          })
+          .then(_=>{
+            return check_for_shipping();
+            // $("#check_for_shipping").trigger("click")
+          }).then(_=>{
+            alert("Wrote Configuration")
+          })
+          .catch(error=> alert(error))
+          })
+        function check_for_test(){
+          $('#check_for_test_result').addClass("checking")
+          $('#check_for_test_result').removeClass("ready")
+          $('#check_for_test_result').text("Checking...")
+          let status_ready = true
+          let status_results = ["Unit NOT READY for Test"]
+          return ss.readAlgorithmConfig()
+          .then(config=>{
+            console.log(config)
+            if(config["algorithm_config"] != 0)
+            {
+              status_ready = false
+              status_results.push("Algorithm Config is wrong("+config["algorithm_config"]+")")
+            }
+            if(config["fall_detection_enabled"] != true)
+            {
+              status_ready = false
+              status_results.push("Fall Detection is wrong("+config["fall_detection_enabled"]+")")
+            }
+          }).then(_=> ss.readSensitivityLevel())
+          .then(sensitivity =>{
+            console.log(sensitivity)
+            if(sensitivity["voltage"] != 3)
+            {
+              status_ready = false;
+              status_results.push("Voltage Sensitivity is wrong("+sensitivity["voltage"]+")")
+            }
+            if(sensitivity["current"] != 0)
+            {
+              status_ready = false;
+              status_results.push("Current Sensitivity is wrong("+sensitivity["current"]+")")
+            }
+          })
+          .then(_=> ss.readFirmwareVersion())
+          .then((fw_version) => {
+            if(fw_version != "1.5.0")
+            {
+              status_ready = false;
+              status_results.push("Firmware Versions is wrong("+fw_version+")")
+            }
+          })
+          .then(_=>{
+            if(status_ready)
+            {
+              $("#check_for_test_result").addClass("ready")
+              $("#check_for_test_result").removeClass("checking")
+              $("#check_for_test_result").text("Unit Ready for Test")
+            } else
+            {
+              $("#check_for_test_result").removeClass("ready")
+              $("#check_for_test_result").removeClass("checking")
+              $("#check_for_test_result").html(status_results.join("<br/>"))
+            }
+          })
+          .catch(error=>alert(error));
+        }
+        $("#check_for_test").click(function(e){
+          e.preventDefault();
+          check_for_test();
+          
+        });      
+        $("#connect").click(function(e){
+            ss.request()
+              .then(_ => {
+                $(".disconnected").hide();
+                $('.working').show();
+              })
+              .then(_ => ss.connect())
+              .then(_ => { 
+                console.log("connected");
+              })
+              .then(_=>ss.readSerialNumber())
+              .then((serial_number) =>{
+                if(serial_number == 0xFFFFFFFF)
+                {
+                    $('#serial_number').val(0);    
+                } else
+                {
+                    $('#serial_number').val(serial_number);
+                }
+                
+              })
+              .then(_=> ss.readFirmwareVersion())
+              .then((fw_version) => {
+                $('#fw_version').text("Firmware: v"+fw_version)
+              })
+              .then(_ => {
+                // console.log("done");
+                connected = true;
+                $(".connected").show();
+                $(".disconnected").hide();
+                $('.working').hide();
+                // console.log(red,yellow);
+              }).then(_=>{
+                return check_for_test();
+                // $("#check_for_test").trigger("click")
+              })
+              .then(_=>{
+                return check_for_shipping();
+                // $("#check_for_shipping").trigger("click")
+              })
+              .catch(error => { console.log(error); alert(error) });
+        });
+      })
+  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>SixthSense Config</title>
+</head>
+<body>
+  <div class="container">
+    <div class="row">
+      <h1>Sixth Sense Production Tool</h1>
+    </div>
+    <div class="row">
+      <a href="#" id="connect" class="disconnected btn btn-primary">Connect</a>
+      <a href="#" id="disconnect" class="connected btn btn-primary">Disconnect</a>
+    </div>
+    <div class="row working">
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <div class="row disconnected">
+        <h3>Disconnected</h3>
+    </div>
+    <div class="connected">
+        <div class="row">
+          <h3>Connected!</h3>
+        </div>
+        <div class="row">
+            <h5 id="fw_version"></h5>
+        </div>
+        <div class="row">
+            <form>
+                <label>Serial Number</label>
+                <input type="text" readonly id="serial_number"/>
+            </form>
+        </div>
+        <h1>Before test</h1>
+        <div class="row">
+          <h3>1. Press Button to Unlock</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary unlock_button">Unlock</a>
+        </div>
+        <div class="row">
+          <h3>2. Press Button to Program Settings</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary" id="program_for_test">Program for Test</a>
+        </div>
+        <div class="row">
+          <h3>3. Check if Ready for Test</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary" id="check_for_test">Check for Test</a>
+        </div>
+        <div class="row">
+          <h4 class = "check_for_results" id="check_for_test_result"></h4>
+        </div>
+        <div class="row"></div>
+        <h1>After Test</h1>
+        <div class="row">
+          <h3>1. Press Button to Unlock</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary unlock_button">Unlock</a>
+        </div>
+        
+        <div class="row">
+          <h3>2. Press Button to Program Settings</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary" id="program_for_shipping">Program for Shipping</a>
+        </div>
+        <div class="row">
+          <h3>3. Check if Ready for Shipping</h3>
+        </div>
+        <div class="row">
+          <a href="#" class="btn btn-primary" id="check_for_shipping">Check for Shipping</a>
+        </div>
+        <div class="row">
+          <h4 class="check_for_results" id="check_for_shipping_result"></h4>
+        </div>
+    </div>
+</div>
+</body>
+</html>

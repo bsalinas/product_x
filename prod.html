@@ -241,6 +241,63 @@ class ProductX {
         return {"voltage":view[0], "current":view[1]}
     })
   }
+  readCurrentThresholds(is_high)
+  {
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+    .then(service=> service.getCharacteristics())
+    .then(all_characteristics => {
+        for(let idx in all_characteristics)
+        {
+            let ch = all_characteristics[idx];
+            if(ch.uuid == uuid)
+            {
+                return ch.readValue();
+            }
+        }
+        return {"buffer":[0]}
+    })
+    .then(value => {
+        let view = new Uint32Array(value.buffer);
+        console.log("Data length is "+view.length);
+        let to_ret = {"yellow":[view[0], view[1], view[2], view[3]], "red":[view[4], view[5], view[6], view[7]]}
+        console.log(to_ret)
+        return to_ret
+    })
+  }
+  writeCurrentThresholds(is_high, values)
+  {
+    let buffer = new ArrayBuffer(32)
+    let data = new Uint32Array(buffer)
+    let data_idx = 0;
+    for(var value_idx in values["yellow"])
+    {
+        let value = values["yellow"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    data_idx = 4;
+    for(var value_idx in values["red"])
+    {
+        let value = values["red"][value_idx];
+        data[data_idx] = value;
+        data_idx++;
+    }
+    let uuid = CURRENT_LOW_THRESHOLDS;
+    if(is_high)
+    {
+        uuid = CURRENT_HIGH_THRESHOLDS;
+    }
+    console.log(buffer);
+    return this.device.gatt.getPrimaryService(ALERT_SERVICE)
+        .then(service => service.getCharacteristic(uuid))
+        .then(characteristic => characteristic.writeValue(buffer))
+
+  }
   readSerialNumber(){
     return this.device.gatt.getPrimaryService(ALERT_SERVICE)
     .then(service=> service.getCharacteristics())
@@ -391,6 +448,17 @@ class ProductX {
     }
   </style>
   <script>
+    let DEFAULT_CURRENT_THRESHOLDS = {"yellow":[250,165,115,50],"red":[500,250,165,115]}
+    let TEST_CURRENT_THRESHOLDS = {"yellow":[200,165,115,50],"red":[500,250,165,115]}
+    // settings->current_threshold_high_yellow[0] = 250; //probably 4ft from 7.6A
+    // settings->current_threshold_high_yellow[1] = 165;
+    // settings->current_threshold_high_yellow[2] = 115;
+    // settings->current_threshold_high_yellow[3] = 50;
+
+    // settings->current_threshold_high_red[0] = 500; //3ft from 7.6A
+    // settings->current_threshold_high_red[1] = 250; //probably ~4.2ft from 7.6A
+    // settings->current_threshold_high_red[2] = 165;
+    // settings->current_threshold_high_red[3] = 115;
     $(document).ready(function(e){
 
         // $(".color_picker").append($("#color_picker_template").html())
@@ -464,12 +532,12 @@ class ProductX {
             if(sensitivity["voltage"] != 3)
             {
               status_ready = false;
-              status_results.push("Voltage Sensitivity is wrong("+sensitivity["voltage"]+")")
+              status_results.push("Voltage Sensitivity is wrong("+(sensitivity["voltage"]+1)+")")
             }
             if(sensitivity["current"] != 3)
             {
               status_ready = false;
-              status_results.push("Current Sensitivity is wrong("+sensitivity["current"]+")")
+              status_results.push("Current Sensitivity is wrong("+(sensitivity["current"]+1)+")")
             }
           })
           .then(_=> ss.readFirmwareVersion())
@@ -486,6 +554,24 @@ class ProductX {
             {
                 status_ready = false;
                 status_results.push("Serial Number is Not Programmed")
+            }
+          })
+          .then(_=>ss.readCurrentThresholds(true))
+          .then((current_thresholds) => {
+            for(let i=0; i<4; i++)
+            {
+              console.log(current_thresholds["yellow"][i],DEFAULT_CURRENT_THRESHOLDS["yellow"][i])
+              if(current_thresholds["yellow"][i] !== DEFAULT_CURRENT_THRESHOLDS["yellow"][i])
+              {
+                status_ready = false;
+                status_results.push("Yellow Current Threshold Level "+(i+1)+" is wrong ("+current_thresholds["yellow"][i]+")")
+              }
+              console.log(current_thresholds["red"][i],DEFAULT_CURRENT_THRESHOLDS["red"][i])
+              if(current_thresholds["red"][i] !== DEFAULT_CURRENT_THRESHOLDS["red"][i])
+              {
+                status_ready = false;
+                status_results.push("Red Current Threshold Level "+(i+1)+" is wrong ("+current_thresholds["red"][i]+")")
+              }
             }
           })
           .then(_=>{
@@ -510,6 +596,7 @@ class ProductX {
           ss.writeAlgorithmConfig(config)
           .then(_=>ss.writeSensitivityLevel(sensitivity))
           .then(_=>ss.writeSmartAdaptiveEnabled({"enabled":false}))
+          .then(_=>ss.writeCurrentThresholds(true,DEFAULT_CURRENT_THRESHOLDS))
           .then(_=>{
             return check_for_test();
             // $("#check_for_test").trigger("click")
@@ -532,6 +619,7 @@ class ProductX {
           ss.writeAlgorithmConfig(config)
           .then(_=>ss.writeSensitivityLevel(sensitivity))
           .then(_=>ss.writeSmartAdaptiveEnabled({"enabled":false}))
+          .then(_=>ss.writeCurrentThresholds(true,TEST_CURRENT_THRESHOLDS))
           .then(_=>{
             return check_for_test();
             // $("#check_for_test").trigger("click")
@@ -569,12 +657,12 @@ class ProductX {
             if(sensitivity["voltage"] != 3)
             {
               status_ready = false;
-              status_results.push("Voltage Sensitivity is wrong("+sensitivity["voltage"]+")")
+              status_results.push("Voltage Sensitivity is wrong("+(sensitivity["voltage"]+1)+")")
             }
             if(sensitivity["current"] != 0)
             {
               status_ready = false;
-              status_results.push("Current Sensitivity is wrong("+sensitivity["current"]+")")
+              status_results.push("Current Sensitivity is wrong("+(sensitivity["current"]+1)+")")
             }
           })
           .then(_=> ss.readFirmwareVersion())
@@ -583,6 +671,22 @@ class ProductX {
             {
               status_ready = false;
               status_results.push("Firmware Versions is wrong("+fw_version+")")
+            }
+          })
+          .then(_=>ss.readCurrentThresholds(true))
+          .then((current_thresholds) => {
+            for(let i=0; i<4; i++)
+            {
+              if(current_thresholds["yellow"][i] !== TEST_CURRENT_THRESHOLDS["yellow"][i])
+              {
+                status_ready = false;
+                status_results.push("Yellow Current Threshold Level "+(i+1)+" is wrong ("+current_thresholds["yellow"][i]+")")
+              }
+              if(current_thresholds["red"][i] !== TEST_CURRENT_THRESHOLDS["red"][i])
+              {
+                status_ready = false;
+                status_results.push("Red Current Threshold Level "+(i+1)+" is wrong ("+current_thresholds["red"][i]+")")
+              }
             }
           })
           .then(_=>{
